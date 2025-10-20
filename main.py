@@ -1,3 +1,5 @@
+from urllib import request
+
 from fastapi import FastAPI, HTTPException,Request,Form
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
@@ -73,6 +75,45 @@ def get_me(request: Request):
     if not user:
         raise HTTPException(status_code=400,detail="로그인이 필요합니다.")
     return{"user":user}
+
+@app.post("/users/update")
+def update_user(request: Request,username:str=Form(...),email:str=Form(...)):
+    user=request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=400, detail="로그인이 필요합니다.")
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM users WHERE email = %s AND id !=%s",(email,user["id"],))
+        if cur.fetchone():
+            raise HTTPException(status_code=400, detail="이미 사용중인 이메일 입니다.")
+
+        cur.execute("UPDATE users SET username = %s, email= %s WHERE id= %s",(username,email,user["id"]))
+        conn.commit()
+
+        request.session["user"]["username"] = username
+        request.session["user"]["email"] = email
+
+    return{"message":"회원정보가 수정되었습니다."}
+
+
+@app.post("/users/change-password")
+def change_password(request: Request,old_password: str = Form(...), new_password: str = Form(...)):
+    user=request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=400,detail="로그인이 필요합니다.")
+    with conn.cursor() as cur:
+        cur.execute("SELECT password FROM users WHERE id = %s",(user["id"]))
+        db_user=cur.fetchone()
+
+
+        if not bcrypt.checkpw(old_password.encode("utf-8"),db_user["password"].encode("utf-8")):
+            raise HTTPException(status_code=401,detail="현재 비밀번호가 올바르지 않습니다.")
+
+        hashed_pw = bcrypt.hashpw(new_password.encode("utf-8"),bcrypt.gensalt())
+        cur.execute("UPDATE users SET password = %s WHERE id = %s",(hashed_pw.decode("utf-8"),user["id"]))
+        conn.commit()
+    return {"message": " 비밀번호가 성공적으로 변경되었습니다."}
+
+
 
 
 @app.post("/post")
