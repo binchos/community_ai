@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>Community Board</title>
+  <style>
+    body {
+      font-family: "Noto Sans KR", sans-serif;
+      background: #f5f6fa;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* 상단 네비게이션 바 */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background: #007bff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 25px;
+      color: white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+
+    .navbar h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* 프로필 영역 */
+    .profile-area {
+      position: relative;
+    }
+
+    .profile-btn {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 15px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .dropdown {
+      position: absolute;
+      right: 0;
+      top: 55px;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+      display: none;
+      min-width: 170px;
+    }
+
+    .dropdown.active {
+      display: block;
+    }
+
+    .dropdown button {
+      width: 100%;
+      border: none;
+      background: none;
+      padding: 12px;
+      text-align: left;
+      font-size: 14px;
+      cursor: pointer;
+      color: #333;
+    }
+
+    .dropdown button:hover {
+      background: #f0f5ff;
+    }
+
+    /* 본문 컨테이너 */
+    .container {
+      max-width: 800px;
+      margin: 90px auto;
+      padding: 0 20px;
+    }
+
+    .post {
+      background: white;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 10px 0;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.08);
+    }
+
+    .post h3 {
+      margin: 0 0 5px;
+      color: #007bff;
+    }
+
+    .post p {
+      margin: 0 0 10px;
+      color: #333;
+    }
+
+    .post small {
+      color: #777;
+    }
+
+    .action-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
+    .action-btn:hover {
+      background: #0062cc;
+    }
+
+    .msg {
+      text-align: center;
+      color: #777;
+      margin-top: 40px;
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="navbar">
+    <h1 onclick="window.location='index.html'">커뮤니티 게시판</h1>
+    <div id="profileArea" class="profile-area">
+      <button class="action-btn" onclick="window.location='login.html'">로그인</button>
+      <button class="action-btn" style="background:#28a745" onclick="window.location='register.html'">회원가입</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="posts"></div>
+  </div>
+
+  <script>
+    async function checkLogin() {
+      const res = await fetch("/users/me");
+      if (!res.ok) {
+        document.getElementById("posts").innerHTML =
+          `<p class="msg">🔒 로그인 후 게시글을 볼 수 있습니다.</p>`;
+        return null;
+      }
+
+      const data = await res.json();
+      renderProfileMenu(data.user);
+      loadPosts();
+      return data.user;
+    }
+
+    function renderProfileMenu(user) {
+      const area = document.getElementById("profileArea");
+      area.innerHTML = `
+        <button class="profile-btn" id="profileBtn">${user.username} ▼</button>
+        <div class="dropdown" id="dropdownMenu">
+          <button onclick="window.location='mypage.html'">마이페이지</button>
+          <button onclick="window.location='password.html'">비밀번호 변경</button>
+          <button onclick="logout()">로그아웃</button>
+        </div>
+      `;
+
+      const btn = document.getElementById("profileBtn");
+      const menu = document.getElementById("dropdownMenu");
+
+      btn.addEventListener("click", () => {
+        menu.classList.toggle("active");
+      });
+
+      // 바깥 클릭 시 닫기
+      document.addEventListener("click", (e) => {
+        if (!area.contains(e.target)) menu.classList.remove("active");
+      });
+    }
+
+    async function loadPosts() {
+      const res = await fetch("/posts");
+      const data = await res.json();
+      const list = document.getElementById("posts");
+
+      list.innerHTML = `
+        <button class="action-btn" onclick="window.location='post.html'">✏️ 새 글 작성</button>
+        ${data.posts.map(p => `
+          <div class="post">
+            <h3>${p.title}</h3>
+            <p>${p.content}</p>
+            <small>작성자: ${p.username} | ${p.created_date}</small>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    async function logout() {
+      await fetch("/users/logout");
+      alert("로그아웃 되었습니다.");
+      window.location = "login.html";
+    }
+
+    checkLogin();
+  </script>
+</body>
+</html>

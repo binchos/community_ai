@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>회원가입</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h2>회원가입</h2>
+    <form id="registerForm">
+      <input name="username" placeholder="이름" required><br>
+      <input name="email" placeholder="이메일" required><br>
+      <input name="password" placeholder="비밀번호" type="password" required><br>
+      <button type="submit">가입하기</button>
+    </form>
+    <button onclick="window.location='login.html'">로그인으로</button>
+  </div>
+
+  <script>
+    document.getElementById("registerForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const form = new FormData(e.target);
+      const res = await fetch("/users/register", { method: "POST", body: form });
+      const data = await res.json();
+      alert(data.message);
+      if (res.ok) window.location = "login.html";
+    };
+  </script>
+</body>
+</html>
