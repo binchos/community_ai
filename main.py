@@ -8,18 +8,20 @@ import bcrypt
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from uuid import uuid4
-
+import re
+from pydantic import EmailStr
+USERNAME_RE = re.compile(r'^[A-Za-z0-9가-힣]+$')
 
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
-UPLOAD_DIR = BASE_DIR / "upload"
+UPLOAD_DIR = STATIC_DIR / "uploads"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI()
 
 app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
-app.mount("/static",StaticFiles(directory="static",html=True), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR), html=True), name="static")
 
 
 
@@ -52,7 +54,11 @@ conn = pymysql.connect(
 async def register_user(username: str=Form(...),email:str=Form(...),password:str=Form(...),password_confirm: str = Form(...),
     avatar: UploadFile | None = File(None),):
 
-    if len(password)<8:
+
+    username = username.strip()
+    if not USERNAME_RE.fullmatch(username):
+        raise HTTPException(status_code=400, detail="닉네임은 한글/영문/숫자만 사용 가능합니다. (공백 및 특수문자 불가)")
+    if len(password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
     if password !=password_confirm:
         raise HTTPException(status_code=400, detail="Passwords must match")
@@ -80,12 +86,16 @@ async def register_user(username: str=Form(...),email:str=Form(...),password:str
             with open(fpath, "wb") as f:
                 f.write(content)
             avatar_url = f"/static/uploads/{fname}"
+    try:
         with conn.cursor() as cur:
             cur.execute(
             "INSERT INTO users (username, email, password, avatar_url) VALUES (%s, %s, %s, %s)",
             (username, email, hashed_pw, avatar_url)
         )
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     return {"message": f"{username}님 회원가입 완료"}
 
 @app.post("/users/login")
@@ -121,6 +131,9 @@ def update_user(request: Request,username:str=Form(...),email:str=Form(...)):
     user=request.session.get("user")
     if not user:
         raise HTTPException(status_code=400, detail="로그인이 필요합니다.")
+    username = username.strip()
+    if not USERNAME_RE.fullmatch(username):
+        raise HTTPException(status_code=400,detail="닉네임은 한글/영문/숫자만 사용 가능합니다. (공백 및 특수문자 불가)")
     with conn.cursor() as cur:
         cur.execute("SELECT * FROM users WHERE email = %s AND id !=%s",(email,user["id"],))
         if cur.fetchone():
@@ -140,16 +153,21 @@ def change_password(request: Request,old_password: str = Form(...), new_password
     user=request.session.get("user")
     if not user:
         raise HTTPException(status_code=400,detail="로그인이 필요합니다.")
+    if len(new_password)<8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+
     with conn.cursor() as cur:
-        cur.execute("SELECT password FROM users WHERE id = %s",(user["id"]))
+        cur.execute("SELECT password FROM users WHERE id = %s",(user["id"],))
         db_user=cur.fetchone()
+        if not db_user:
+            raise HTTPException(status_code=404, detail="사용자를 찾을수없습니다.")
 
 
         if not bcrypt.checkpw(old_password.encode("utf-8"),db_user["password"].encode("utf-8")):
             raise HTTPException(status_code=401,detail="현재 비밀번호가 올바르지 않습니다.")
 
-        hashed_pw = bcrypt.hashpw(new_password.encode("utf-8"),bcrypt.gensalt())
-        cur.execute("UPDATE users SET password = %s WHERE id = %s",(hashed_pw.decode("utf-8"),user["id"]))
+        hashed_pw = bcrypt.hashpw(new_password.encode("utf-8"),bcrypt.gensalt()).decode("utf-8")
+        cur.execute("UPDATE users SET password = %s WHERE id = %s",(hashed_pw,user["id"]))
         conn.commit()
     return {"message": " 비밀번호가 성공적으로 변경되었습니다."}
 
