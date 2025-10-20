@@ -154,8 +154,10 @@ def change_password(request: Request,old_password: str = Form(...), new_password
     return {"message": " 비밀번호가 성공적으로 변경되었습니다."}
 
 
-
-
+@app.post("/users/logout")
+def logout(request: Request):
+    request.session.pop("user", None)
+    return{"message":"로그아웃 되었습니다."}
 @app.post("/post")
 def create_post(request: Request, title:str=Form(...), content:str=Form(...)):
     user=request.session.get("user")
