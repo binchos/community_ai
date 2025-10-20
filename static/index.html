@@ -183,6 +183,9 @@
         }
         const data = await res.json();
         const user = data.user;
+        const avatarUrl = user.avatar_url || "https://cdn-icons-png.flaticon.com/512/3177/3177440.png";
+document.querySelector('#panel img').src = avatarUrl;
+document.querySelector('#profileBtn img').src = avatarUrl;
         isLoggedIn = true;
         document.getElementById("userName").textContent = user.username;
         document.getElementById("profileName").textContent = user.username;

@@ -3,28 +3,88 @@
 <head>
   <meta charset="UTF-8">
   <title>회원가입</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .avatar-preview {
+      width: 96px; height: 96px; border-radius: 50%;
+      object-fit: cover; display: block; margin: 6px auto 0;
+      border: 1px solid #eee;
+    }
+    .hint { color:#666; font-size: 12px; margin-top: 4px; }
+    .error { color:#d33; font-size: 13px; margin-top: 6px; }
+  </style>
 </head>
 <body>
   <div class="container">
     <h2>회원가입</h2>
-    <form id="registerForm">
+
+    <form id="registerForm" enctype="multipart/form-data">
       <input name="username" placeholder="이름" required><br>
-      <input name="email" placeholder="이메일" required><br>
-      <input name="password" placeholder="비밀번호" type="password" required><br>
+      <input name="email" placeholder="이메일" type="email" required><br>
+
+      <!-- 비밀번호 + 비밀번호 확인 -->
+      <input id="pw" name="password" placeholder="비밀번호 (8자 이상)" type="password" required><br>
+      <input id="pw2" name="password_confirm" placeholder="비밀번호 확인" type="password" required>
+      <div id="pwErr" class="error" style="display:none;"></div>
+
+      <!-- 프로필 사진 -->
+      <div style="margin-top:12px; text-align:left;">
+        <label for="avatar"><b>프로필 사진 (선택)</b></label>
+        <input id="avatar" name="avatar" type="file" accept="image/*">
+        <div class="hint">JPG/PNG 등 이미지 파일, 최대 5MB</div>
+        <img id="preview" class="avatar-preview" alt="preview" style="display:none;">
+      </div>
+
       <button type="submit">가입하기</button>
     </form>
-    <button onclick="window.location='login.html'">로그인으로</button>
+
+    <button onclick="window.location='/static/login.html'">로그인으로</button>
   </div>
 
   <script>
+    const pw  = document.getElementById('pw');
+    const pw2 = document.getElementById('pw2');
+    const pwErr = document.getElementById('pwErr');
+    const avatar = document.getElementById('avatar');
+    const preview = document.getElementById('preview');
+
+    // 이미지 미리보기 + 간단 검증(타입/용량)
+    avatar.addEventListener('change', (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) { preview.style.display='none'; return; }
+      if (!f.type.startsWith('image/')) {
+        alert('이미지 파일만 업로드할 수 있습니다.');
+        avatar.value = ''; preview.style.display='none'; return;
+      }
+      if (f.size > 5 * 1024 * 1024) {
+        alert('파일 용량은 5MB 이하만 가능합니다.');
+        avatar.value = ''; preview.style.display='none'; return;
+      }
+      const url = URL.createObjectURL(f);
+      preview.src = url; preview.style.display = 'block';
+    });
+
+    // 폼 제출
     document.getElementById("registerForm").onsubmit = async (e) => {
       e.preventDefault();
+
+      // 비밀번호 일치/길이 클라이언트 체크
+      pwErr.style.display = 'none'; pwErr.textContent = '';
+      if (pw.value.length < 8) {
+        pwErr.textContent = '비밀번호는 8자 이상이어야 합니다.'; pwErr.style.display='block'; return;
+      }
+      if (pw.value !== pw2.value) {
+        pwErr.textContent = '비밀번호가 일치하지 않습니다.'; pwErr.style.display='block'; return;
+      }
+
       const form = new FormData(e.target);
-      const res = await fetch("/users/register", { method: "POST", body: form });
+      const res  = await fetch("/users/register", { method: "POST", body: form });
       const data = await res.json();
+      if (!res.ok) {
+        alert(data.detail || "회원가입에 실패했습니다."); return;
+      }
       alert(data.message);
-      if (res.ok) window.location = "login.html";
+      window.location = "/static/login.html";
     };
   </script>
 </body>

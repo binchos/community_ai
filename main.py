@@ -1,11 +1,20 @@
-from urllib import request
 
-from fastapi import FastAPI, HTTPException,Request,Form
+
+from fastapi import FastAPI, HTTPException,Request,Form,UploadFile,File
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 import pymysql
 import bcrypt
 from fastapi.staticfiles import StaticFiles
+from pathlib import Path
+from uuid import uuid4
+
+
+
+BASE_DIR = Path(__file__).resolve().parent
+STATIC_DIR = BASE_DIR / "static"
+UPLOAD_DIR = BASE_DIR / "upload"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI()
 
@@ -40,18 +49,41 @@ conn = pymysql.connect(
 #     content: str
 
 @app.post("/users/register")
-def register_user(username: str=Form(...),email:str=Form(...),password:str=Form(...)):
+async def register_user(username: str=Form(...),email:str=Form(...),password:str=Form(...),password_confirm: str = Form(...),
+    avatar: UploadFile | None = File(None),):
+
+    if len(password)<8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters long")
+    if password !=password_confirm:
+        raise HTTPException(status_code=400, detail="Passwords must match")
     with conn.cursor() as cur:
-        cur.execute("SELECT * FROM users WHERE email=%s",(email,))
+        cur.execute("SELECT id FROM users WHERE email=%s",(email,))
         if cur.fetchone():
             raise HTTPException(status_code=400, detail="Email already registered")
 
-        hashed_pw = bcrypt.hashpw(password.encode("utf-8"),bcrypt.gensalt())
+        hashed_pw = bcrypt.hashpw(password.encode("utf-8"),bcrypt.gensalt()).decode("utf-8")
 
-
-        cur.execute(
-            "INSERT INTO users (username, email, password) VALUES (%s, %s, %s)",
-            (username, email, hashed_pw.decode("utf-8"))
+        avatar_url=None
+        if avatar and avatar.filename:
+            if not (avatar.content_type and avatar.content_type.startswith("image/")):
+                raise HTTPException(status_code=400, detail="Avatar must be an image file")
+            content= await avatar.read()
+            if len(content)>5*1024*1024:
+                raise HTTPException(status_code=400, detail="Avatar image too large, 5MB is required")
+            ext = ""
+            if "." in avatar.filename:
+                ext = avatar.filename.rsplit(".", 1)[-1].lower()
+                if len(ext) > 5:
+                    ext = "jpg"
+            fname = f"{uuid4().hex}.{ext or 'jpg'}"
+            fpath = UPLOAD_DIR / fname
+            with open(fpath, "wb") as f:
+                f.write(content)
+            avatar_url = f"/static/uploads/{fname}"
+        with conn.cursor() as cur:
+            cur.execute(
+            "INSERT INTO users (username, email, password, avatar_url) VALUES (%s, %s, %s, %s)",
+            (username, email, hashed_pw, avatar_url)
         )
         conn.commit()
     return {"message": f"{username}님 회원가입 완료"}
@@ -74,7 +106,15 @@ def get_me(request: Request):
     user=request.session.get("user")
     if not user:
         raise HTTPException(status_code=400,detail="로그인이 필요합니다.")
-    return{"user":user}
+    with conn.cursor() as cur:
+        cur.execute("SELECT avatar_url FROM users WHERE id=%s", (user["id"],))
+        row = cur.fetchone()
+    return {
+        "user": {
+                    "username": user["username"],
+                    "email": user["email"],
+                    "avatar_url": (row or {}).get("avatar_url"),
+                }}
 
 @app.post("/users/update")
 def update_user(request: Request,username:str=Form(...),email:str=Form(...)):
