@@ -51,7 +51,7 @@ conn = pymysql.connect(
 #     content: str
 
 @app.post("/users/register")
-async def register_user(username: str=Form(...),email:str=Form(...),password:str=Form(...),password_confirm: str = Form(...),
+async def register_user(username: str=Form(...),email:EmailStr=Form(...),password:str=Form(...),password_confirm: str = Form(...),
     avatar: UploadFile | None = File(None),):
 
 
@@ -63,7 +63,7 @@ async def register_user(username: str=Form(...),email:str=Form(...),password:str
     if password !=password_confirm:
         raise HTTPException(status_code=400, detail="Passwords must match")
     with conn.cursor() as cur:
-        cur.execute("SELECT id FROM users WHERE email=%s",(email,))
+        cur.execute("SELECT id FROM users WHERE email=%s",(str(email),))
         if cur.fetchone():
             raise HTTPException(status_code=400, detail="Email already registered")
 
@@ -90,7 +90,7 @@ async def register_user(username: str=Form(...),email:str=Form(...),password:str
         with conn.cursor() as cur:
             cur.execute(
             "INSERT INTO users (username, email, password, avatar_url) VALUES (%s, %s, %s, %s)",
-            (username, email, hashed_pw, avatar_url)
+            (username, str(email), hashed_pw, avatar_url)
         )
         conn.commit()
     except Exception:
@@ -127,7 +127,7 @@ def get_me(request: Request):
                 }}
 
 @app.post("/users/update")
-def update_user(request: Request,username:str=Form(...),email:str=Form(...)):
+def update_user(request: Request,username:str=Form(...),email:EmailStr=Form(...)):
     user=request.session.get("user")
     if not user:
         raise HTTPException(status_code=400, detail="로그인이 필요합니다.")
@@ -135,18 +135,23 @@ def update_user(request: Request,username:str=Form(...),email:str=Form(...)):
     if not USERNAME_RE.fullmatch(username):
         raise HTTPException(status_code=400,detail="닉네임은 한글/영문/숫자만 사용 가능합니다. (공백 및 특수문자 불가)")
     with conn.cursor() as cur:
-        cur.execute("SELECT * FROM users WHERE email = %s AND id !=%s",(email,user["id"],))
+        cur.execute("SELECT * FROM users WHERE email = %s AND id !=%s",(str(email),user["id"],))
         if cur.fetchone():
             raise HTTPException(status_code=400, detail="이미 사용중인 이메일 입니다.")
 
-        cur.execute("UPDATE users SET username = %s, email= %s WHERE id= %s",(username,email,user["id"]))
+        cur.execute("UPDATE users SET username = %s, email= %s WHERE id= %s",(username,str(email),user["id"]))
         conn.commit()
 
         request.session["user"]["username"] = username
-        request.session["user"]["email"] = email
+        request.session["user"]["email"] = str(email)
 
     return{"message":"회원정보가 수정되었습니다."}
 
+def ensure_logged_in(request: Request):
+    user = request.session.get("user")
+    if not user:
+        raise HTTPException(status_code=401, detail="로그인이 필요합니다.")
+    return user
 
 @app.post("/users/change-password")
 def change_password(request: Request,old_password: str = Form(...), new_password: str = Form(...)):
@@ -188,7 +193,8 @@ def create_post(request: Request, title:str=Form(...), content:str=Form(...)):
     return{"message":"게시글이 작성되었습니다."}
 
 @app.get("/posts")
-def get_posts():
+def get_posts(request: Request):
+    ensure_logged_in(request)
     with conn.cursor() as cur:
         cur.execute("""
                     SELECT p.id, p.title, p.content, u.username, p.created_date
