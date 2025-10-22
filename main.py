@@ -379,7 +379,7 @@ def create_comment(request: Request, post_id:int=Form(...),content:str=Form(...)
 def get_comments(post_id: int):
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT c.id, c.content, u.username, c.created_date
+            SELECT c.id,c.user_id, c.content, u.username,u.avatar_url AS author_avatar, c.created_date
             FROM comments c
             JOIN users u ON c.user_id = u.id
             WHERE c.post_id = %s
@@ -387,3 +387,18 @@ def get_comments(post_id: int):
         """, (post_id,))
         rows = cur.fetchall()
     return {"comments": rows}
+
+@app.delete("/comments/{comment_id}")
+def delete_comment(request: Request, comment_id:int):
+    user=ensure_logged_in(request)
+    with conn.cursor() as cur:
+        cur.execute("SELECT user_id FROM comments WHERE id = %s", (comment_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="댓글을 찾을 수 없습니다.")
+        if row["user_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="본인 댓글만 삭제할 수 있습니다.")
+
+        cur.execute("DELETE FROM comments WHERE id = %s", (comment_id,))
+        conn.commit()
+    return {"message":"댓글이 삭제되었습니다."}

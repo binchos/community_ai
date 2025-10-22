@@ -211,37 +211,80 @@
 
     // 댓글
     async function loadComments() {
-      const box = document.getElementById('comments');
-      box.innerHTML = `<div class="text-sm text-gray-400">불러오는 중…</div>`;
-      try {
-        const r = await fetch(`/comments/${postId}`);
-        if (!r.ok) throw 0;
-        const data = await r.json();
-        if (!data.comments?.length) {
-          box.innerHTML = `<div class="text-sm text-gray-400">첫 댓글을 남겨보세요.</div>`;
-          return;
-        }
-        box.innerHTML = '';
-        data.comments.forEach(c => {
-          const ts = c.created_date ? new Date(c.created_date).toLocaleString() : '';
-          const el = document.createElement('div');
-          el.className = 'rounded-xl border p-4';
-          el.innerHTML = `
-            <div class="flex items-center justify-between text-xs text-gray-500">
-              <span class="font-medium text-gray-700">${c.username || '-'}</span>
-              <span>${ts}</span>
-            </div>
-            <p class="mt-2 text-gray-800 whitespace-pre-line">${c.content}</p>
-          `;
-          box.appendChild(el);
-        });
-        // 상단 댓글 수 업데이트(있다면)
-        const count = data.comments.length;
-        document.getElementById('statComments').textContent = `💬 ${count}`;
-      } catch {
-        box.innerHTML = `<div class="text-sm text-red-500">댓글을 불러오지 못했습니다.</div>`;
+    const box = document.getElementById('comments');
+    box.innerHTML = `<div class="text-sm text-gray-400">불러오는 중…</div>`;
+    try {
+      const r = await fetch(`/comments/${postId}`);
+      if (!r.ok) throw 0;
+      const data = await r.json();
+
+      if (!data.comments?.length) {
+        box.innerHTML = `<div class="text-sm text-gray-400">첫 댓글을 남겨보세요.</div>`;
+        // 상단 개수도 0으로
+        document.getElementById('statComments').textContent = `💬 0`;
+        return;
       }
+
+      box.innerHTML = '';
+      data.comments.forEach(c => {
+        const ts = c.created_date ? new Date(c.created_date).toLocaleString() : '';
+        const isMine = window.currentUser && (c.user_id === window.currentUser.id);  // ✅ 내 댓글?
+
+        const el = document.createElement('div');
+        el.className = 'rounded-xl border p-4';
+
+        el.innerHTML = `
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <img src="${c.author_avatar || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png'}"
+                   class="w-7 h-7 rounded-full object-cover" alt="">
+              <div>
+                <div class="text-sm font-medium text-gray-700">${c.username || '-'}</div>
+                <div class="text-xs text-gray-500">${ts}</div>
+              </div>
+            </div>
+
+            ${isMine ? `
+              <button class="delete-comment text-xs text-red-600 hover:underline" data-id="${c.id}">
+                삭제
+              </button>
+            ` : ''}
+          </div>
+
+          <p class="mt-2 text-gray-800 whitespace-pre-line">${c.content}</p>
+        `;
+
+        // ✅ 삭제 버튼 이벤트
+        const delBtn = el.querySelector('.delete-comment');
+        if (delBtn) {
+          delBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const cid = Number(delBtn.dataset.id);
+            if (!confirm('댓글을 삭제할까요?')) return;
+            try {
+              const resp = await fetch(`/comments/${cid}`, { method: 'DELETE' });
+              const body = await resp.json().catch(() => ({}));
+              if (!resp.ok) {
+                alert(body.detail || '삭제 실패');
+                return;
+              }
+              // 목록 새로고침 + 댓글 수 갱신
+              await loadComments();
+            } catch {
+              alert('삭제 실패');
+            }
+          });
+        }
+
+        box.appendChild(el);
+      });
+
+      // 상단 댓글 수 업데이트
+      document.getElementById('statComments').textContent = `💬 ${data.comments.length}`;
+    } catch {
+      box.innerHTML = `<div class="text-sm text-red-500">댓글을 불러오지 못했습니다.</div>`;
     }
+  }
 
     document.getElementById('commentForm').addEventListener('submit', async (e) => {
       e.preventDefault();
