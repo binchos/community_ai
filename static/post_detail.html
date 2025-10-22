@@ -17,7 +17,8 @@
 
   <main class="max-w-4xl mx-auto px-4 py-8">
     <div class="mb-4">
-      <button class="text-sm text-gray-600 hover:text-blue-700" onclick="history.back()">← 뒤로가기</button>
+      <button class="text-sm text-gray-600 hover:text-blue-700" onclick="location.href='index.html'">← 홈으로</button>
+
     </div>
 
     <!-- 본문 카드 -->
@@ -80,6 +81,9 @@
   </main>
 
   <script>
+        window.addEventListener("pageshow", (e) => {
+    if (e.persisted) location.reload();
+  });
     // 공통: 헤더 유저 표시
     async function renderHeader() {
       const nav = document.getElementById('navRight');
