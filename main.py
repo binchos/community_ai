@@ -1,6 +1,9 @@
 
 
-from fastapi import FastAPI, HTTPException,Request,Form,UploadFile,File
+from fastapi import FastAPI, HTTPException,Request,Form,UploadFile,File, BackgroundTasks
+from transformers import pipeline
+from PIL import Image
+import torch
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
 import pymysql
@@ -10,6 +13,8 @@ from pathlib import Path
 from uuid import uuid4
 import re
 from pydantic import EmailStr
+BOT_USER_EMAIL = "assistant@system.local"
+BOT_USER_NAME = "AI_assistant"
 USERNAME_RE = re.compile(r'^[A-Za-z0-9가-힣]+$')
 
 
@@ -49,6 +54,55 @@ conn = pymysql.connect(
 #     user_id: int
 #     post_id: int
 #     content: str
+
+def get_or_create_bot_user_id()-> int:
+    with conn.cursor() as cur:
+        cur.execute("SELECT id FROM users WHERE email = %s", (BOT_USER_EMAIL,))
+        row = cur.fetchone()
+        if row:
+            return row["id"]
+        cur.execute(
+            "INSERT INTO users (username, email, password, avatar_url) VALUES (%s, %s, %s, %s)",
+            (BOT_USER_NAME, BOT_USER_EMAIL,
+             bcrypt.hashpw(b'bot', bcrypt.gensalt()).decode(),
+             "https://cdn-icons-png.flaticon.com/512/4712/4712109.png")
+        )
+        conn.commit()
+        return cur.lastrowid
+
+
+_CLF = None
+def get_image_classifier():
+    global _CLF
+    if _CLF is None:
+        _CLF = pipeline("image-classification", model="microsoft/resnet-50",
+                        device=0 if torch.cuda.is_available() else -1)
+    return _CLF
+
+def hf_classify_image_to_comment(image_path:str, title:str,content:str)->str:
+    try:
+        clf=get_image_classifier()
+        img=Image.open(image_path).convert("RGB")
+        preds=clf(img,top_k=3)
+        top=preds[0]
+        label=top["label"]
+        score=float(top["score"])
+        if score>0.35:
+            return f"이미지가 '{label}'인가요?"
+        else:
+            lables=",".join(p["label"] for p in preds)
+            return f"헷갈리는데({lables}). 이건가요?"
+    except Exception:
+        return "이미지 잘 봤습니다!"
+
+
+def generate_model_comment(post_id: int, image_path:str,title:str, content:str):
+    text= hf_classify_image_to_comment(image_path, title, content)
+    bot_id=get_or_create_bot_user_id()
+    with conn.cursor() as cur:
+        cur.execute("INSERT INTO comments (post_id, user_id, content) VALUES (%s, %s, %s)",
+            (post_id, bot_id, text))
+        conn.commit()
 
 @app.post("/users/register")
 async def register_user(username: str=Form(...),email:EmailStr=Form(...),password:str=Form(...),password_confirm: str = Form(...),
@@ -230,13 +284,16 @@ def logout(request: Request):
 @app.post("/post")
 async def create_post(
     request: Request,
+    background_tasks: BackgroundTasks,
     title: str = Form(...),
     content: str = Form(...),
-    image: UploadFile | None = File(None),   # ✅ 추가
+    image: UploadFile | None = File(None),
 ):
     user = ensure_logged_in(request)
 
     image_url = None
+    saved_path = None
+
     if image and image.filename:
       if not (image.content_type and image.content_type.startswith("image/")):
           raise HTTPException(status_code=400, detail="이미지 파일만 업로드할 수 있습니다.")
@@ -254,6 +311,7 @@ async def create_post(
       with open(fpath, "wb") as f:
           f.write(content_bytes)
       image_url = f"/static/uploads/{fname}"
+      saved_path = str(fpath)
 
     with conn.cursor() as cur:
         cur.execute(
@@ -262,7 +320,8 @@ async def create_post(
         )
         post_id = cur.lastrowid
         conn.commit()
-
+    if saved_path:
+        background_tasks.add_task(generate_model_comment,post_id, saved_path,title,content)
     with conn.cursor() as cur:
         cur.execute(
             "SELECT id, title, content, image_url, created_date FROM posts WHERE id=%s",
