@@ -2,208 +2,376 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>My Page · Community</title>
+  <title>마이페이지 · Community</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen text-gray-900">
   <!-- 헤더 -->
   <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
     <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
-      <a href="index.html" class="font-semibold text-gray-800 hover:text-blue-600">← 글 목록으로</a>
-      <h1 class="text-lg font-bold text-gray-900">마이페이지</h1>
-      <div></div>
+      <a href="index.html" class="text-sm font-medium text-gray-700 hover:text-blue-600">← 글 목록으로</a>
+      <h1 class="text-lg font-bold">마이페이지</h1>
+
+      <!-- 헤더 오른쪽: 로그아웃 / 회원탈퇴 -->
+      <div class="flex items-center gap-2">
+        <button id="logoutBtn"
+                class="h-9 rounded-lg border px-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+          로그아웃
+        </button>
+        <button id="deleteBtn"
+                class="h-9 rounded-lg border px-3 text-sm font-medium border-red-300 text-red-700 hover:bg-red-50">
+          회원탈퇴
+        </button>
+      </div>
     </div>
   </header>
 
-  <main class="max-w-4xl mx-auto px-4 py-8">
-    <!-- 프로필 카드 -->
-    <section class="bg-white rounded-2xl shadow-sm ring-1 ring-gray-100 p-6">
-      <div class="flex flex-col sm:flex-row gap-6 sm:items-center">
-        <div class="shrink-0">
-          <img id="avatarPreview"
-               src="https://cdn-icons-png.flaticon.com/512/3177/3177440.png"
-               class="w-24 h-24 rounded-full object-cover ring-2 ring-white shadow"
-               alt="avatar">
-        </div>
-        <div class="flex-1">
-          <h2 class="text-xl font-semibold text-gray-900">내 프로필</h2>
-          <p class="text-sm text-gray-500 mt-1" id="emailText">-</p>
-        </div>
-      </div>
+  <!-- 같은 행의 카드 높이 통일을 위해 items-stretch -->
+  <main class="max-w-4xl mx-auto px-4 py-8 grid gap-6 lg:grid-cols-12 items-stretch">
+    <!-- 좌측 프로필 카드 -->
+    <section class="lg:col-span-4">
+    <div id="leftCard" class="bg-white rounded-2xl shadow-sm border p-6 h-full mt-4 flex flex-col">
+  <div class="flex flex-col items-center text-center">
+    <img id="avatarPreview"
+         src="https://cdn-icons-png.flaticon.com/512/3177/3177440.png"
+         class="w-28 h-28 rounded-full object-cover ring-2 ring-white shadow"
+         alt="avatar" />
+    <h2 id="usernameText" class="mt-4 text-xl font-semibold">-</h2>
+    <p id="emailText" class="text-sm text-gray-500">-</p>
+  </div>
 
-      <!-- 탭 버튼 -->
-      <div class="mt-6 grid grid-cols-3 gap-2">
-        <button class="tab-btn active" data-tab="profile">프로필 수정</button>
-        <button class="tab-btn" data-tab="password">비밀번호 변경</button>
-        <button class="tab-btn" data-tab="session">로그아웃</button>
-      </div>
+  <!-- ✅ 아래 블록에 mt-auto를 줘서 카드 바닥으로 밀착 -->
+  <div class="mt-auto pt-6 space-y-2 text-sm text-gray-600 border-t border-gray-100">
+    <div class="flex items-center justify-between">
+      <span class="text-gray-500">닉네임</span>
+      <span id="usernameBadge" class="font-medium">-</span>
+    </div>
+    <div class="flex items-center justify-between">
+      <span class="text-gray-500">이메일</span>
+      <span id="emailBadge" class="font-medium">-</span>
+    </div>
+  </div>
+</div>
+    </section>
 
-      <!-- 탭 컨테이너 -->
-      <div class="mt-6">
-        <!-- 프로필 수정 -->
-        <div class="tab-pane show" id="profile">
-          <form id="updateForm" class="space-y-5" enctype="multipart/form-data">
-            <div>
-              <label class="block text-sm font-medium text-gray-700">닉네임</label>
-              <input name="username" id="usernameInput" placeholder="새 닉네임"
-                     class="mt-1 w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-500"
-                     pattern="^[A-Za-z0-9가-힣]+$" required>
-              <p id="usernameHint" class="mt-1 text-xs text-gray-500">
-                한글/영문/숫자만 가능 (공백·특수문자 불가)
-              </p>
-            </div>
+    <!-- 우측 탭/폼 -->
+    <section class="lg:col-span-8">
+     <div id="rightCard"
+     class="bg-white rounded-2xl shadow-sm border p-6 h-full mt-4 relative pb-16">
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700">프로필 이미지 (선택)</label>
-              <input type="file" id="avatarInput" name="avatar" accept="image/*"
-                     class="mt-1 w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-500">
-              <p class="mt-1 text-xs text-gray-500">이미지 파일, 최대 5MB</p>
-            </div>
-
-            <button class="w-full sm:w-40 rounded-xl bg-blue-600 text-white py-2.5 font-medium hover:bg-blue-700">
-              저장
-            </button>
-
-            <p id="updateMsg" class="text-sm mt-2 hidden"></p>
-          </form>
+        <!-- 세그먼트 탭 -->
+        <div class="inline-flex rounded-full border bg-gray-50 p-1">
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium"
+                  data-tab="profile">회원정보 변경</button>
+          <button class="tab-btn px-4 py-2 rounded-full text-sm font-medium"
+                  data-tab="password">비밀번호 변경</button>
         </div>
 
-        <!-- 비밀번호 변경 -->
-        <div class="tab-pane" id="password">
-          <form id="pwForm" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700">현재 비밀번호</label>
+        <!-- 탭 컨텐츠(여기 높이를 고정/유지) -->
+   <div id="tabContainer" class="mt-6 w-full">
+
+          <!-- 회원정보 변경 -->
+          <div id="tab-profile" class="tab-pane">
+            <form id="updateForm" class="space-y-5" enctype="multipart/form-data">
+              <div>
+                <label class="block text-sm font-medium mb-1">닉네임</label>
+               <input name="username" id="usernameInput" placeholder="새 닉네임"
+                class="w-full rounded-xl border border-gray-300 px-3 py-2
+                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    pattern="^[A-Za-z0-9가-힣]+$" required />
+                <p class="mt-1 text-xs text-gray-500">한글/영문/숫자만 가능 (공백·특수문자 불가)</p>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium mb-1">프로필 이미지 (선택)</label>
+               <input type="file" id="avatarInput" name="avatar" accept="image/*"
+  class="w-full rounded-xl border border-gray-300 px-3 py-2
+         focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                <p class="mt-1 text-xs text-gray-500">이미지 파일, 최대 5MB</p>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <button class="rounded-xl bg-blue-600 text-white px-4 py-2.5 font-medium hover:bg-blue-700">
+                  변경하기
+                </button>
+                <span id="updateMsg" class="text-sm"></span>
+              </div>
+            </form>
+          </div>
+
+          <!-- 비밀번호 변경 -->
+          <div id="tab-password" class="tab-pane hidden">
+            <form id="pwForm" class="space-y-4">
+              <div>
+                <label class="block text-sm font-medium mb-1">현재 비밀번호</label>
               <input name="old_password" type="password"
-                     class="mt-1 w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-500" required>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700">새 비밀번호 (8자 이상)</label>
+  class="w-full rounded-xl border border-gray-300 px-3 py-2
+         focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+              </div>
+              <div>
+                <label class="block text-sm font-medium mb-1">새 비밀번호 (8자 이상)</label>
               <input name="new_password" type="password" minlength="8"
-                     class="mt-1 w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-500" required>
-            </div>
-            <button class="w-full sm:w-40 rounded-xl bg-emerald-600 text-white py-2.5 font-medium hover:bg-emerald-700">
-              변경하기
-            </button>
-            <p id="pwMsg" class="text-sm mt-2 hidden"></p>
-          </form>
-        </div>
+  class="w-full rounded-xl border border-gray-300 px-3 py-2
+         focus:ring-2 focus:ring-blue-500 focus:border-blue-500" required />
+              </div>
+              <div class="flex items-center gap-3">
+                <button class="rounded-xl bg-blue-600 text-white px-4 py-2.5 font-medium hover:bg-blue-700">
+  변경하기
+</button>
 
-        <!-- 로그아웃 -->
-        <div class="tab-pane" id="session">
-          <div class="rounded-xl border border-gray-200 p-4 bg-gray-50">
-            <p class="text-gray-700">정말 로그아웃하시겠어요?</p>
-            <div class="flex gap-2 mt-3">
-              <button id="logoutBtn"
-                      class="flex-1 rounded-xl bg-gray-900 text-white py-2.5 font-medium hover:bg-black">
-                로그아웃
-              </button>
-              <a href="index.html"
-                 class="flex-1 rounded-xl bg-white border border-gray-300 py-2.5 text-center font-medium hover:bg-gray-100">
-                취소
-              </a>
-            </div>
-            <p id="logoutMsg" class="text-sm mt-2 hidden"></p>
+                <span id="pwMsg" class="text-sm"></span>
+              </div>
+            </form>
           </div>
         </div>
       </div>
     </section>
   </main>
 
-  <style>
-    .tab-btn {
-      @apply rounded-xl border border-gray-200 bg-white py-2 text-sm font-medium text-gray-700 hover:bg-gray-50;
-    }
-    .tab-btn.active { @apply bg-blue-600 text-white border-blue-600; }
-    .tab-pane { display: none; }
-    .tab-pane.show { display: block; }
-  </style>
+  <!-- 토스트 -->
+  <div id="toast" class="fixed top-4 right-4 z-[999] hidden"></div>
+
+  <!-- 모달(회원탈퇴 확인 + 비밀번호 입력) -->
+  <div id="modal"
+       class="fixed inset-0 z-[998] hidden items-center justify-center bg-black/40 p-4">
+    <div class="w-full max-w-md rounded-2xl bg-white p-6">
+      <h3 class="text-lg font-semibold">회원탈퇴</h3>
+      <p class="mt-2 text-sm text-gray-600">정말로 탈퇴하시겠어요? 이 작업은 되돌릴 수 없습니다.</p>
+
+      <div class="mt-4">
+        <label class="block text-sm font-medium mb-1">비밀번호 확인</label>
+        <div class="relative">
+        <input id="deletePassword" type="password"
+  class="w-full rounded-xl border border-gray-300 px-3 py-2 pr-10
+         focus:ring-2 focus:ring-red-500 focus:border-red-500"
+  placeholder="현재 비밀번호를 입력하세요" />
+
+          <button type="button" id="togglePw"
+                  class="absolute inset-y-0 right-2 my-auto text-sm text-gray-500 hover:text-gray-700">
+            보기
+          </button>
+        </div>
+        <p class="mt-1 text-xs text-gray-500">보안을 위해 비밀번호를 한 번 더 확인합니다.</p>
+      </div>
+
+      <div class="mt-6 flex justify-end gap-2">
+        <button id="modalCancel"
+                class="rounded-xl border px-4 py-2 text-sm hover:bg-gray-50">취소</button>
+        <button id="modalConfirm"
+                class="rounded-xl bg-red-600 text-white px-4 py-2 text-sm hover:bg-red-700">탈퇴하기</button>
+      </div>
+    </div>
+  </div>
 
   <script>
-    // 탭 전환
-    const btns = document.querySelectorAll('.tab-btn');
-    const panes = document.querySelectorAll('.tab-pane');
-    btns.forEach(b => b.addEventListener('click', () => {
-      btns.forEach(x => x.classList.remove('active'));
-      panes.forEach(p => p.classList.remove('show'));
-      b.classList.add('active');
-      document.getElementById(b.dataset.tab).classList.add('show');
-    }));
 
-    // 사용자 정보 로드
-    async function loadMe() {
-      const res = await fetch('/users/me');
-      if (!res.ok) {
-        location.href = 'login.html';
-        return;
+
+
+      (function pinActionButtons() {
+  const rightCard = document.getElementById('rightCard'); // 이미 relative, pb-16 추가됨
+  // 각 폼의 버튼 래퍼 선택
+  const profileActions = document.querySelector('#updateForm .flex.items-center.gap-3');
+  const passwordActions = document.querySelector('#pwForm .flex.items-center.gap-3');
+
+  [profileActions, passwordActions].forEach(el => {
+    if (!el) return;
+    el.classList.add('absolute', 'bottom-6', 'right-6', 'justify-end');
+    // 안에 메시지(span) -> 버튼 왼쪽으로 두고, 버튼 오른쪽 정렬
+    el.classList.add('w-auto'); // 필요시
+  });
+})();
+    /* ---------------- 탭 전환 ---------------- */
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const panes = {
+      profile: document.getElementById("tab-profile"),
+      password: document.getElementById("tab-password"),
+    };
+    function activateTab(name) {
+      tabButtons.forEach(b => {
+        const on = b.dataset.tab === name;
+        b.classList.toggle("bg-gray-900", on);
+        b.classList.toggle("text-white", on);
+        b.classList.toggle("shadow", on);
+        b.classList.toggle("text-gray-700", !on);
+        b.classList.toggle("bg-gray-50", !on);
+      });
+      panes.profile.classList.toggle("hidden", name !== "profile");
+      panes.password.classList.toggle("hidden", name !== "password");
+    }
+    tabButtons.forEach(b => b.addEventListener("click", () => {
+      activateTab(b.dataset.tab);
+      if (b.dataset.tab === "profile") lockHeightsToProfile(); // '회원정보 변경' 누르면 기준 높이로 다시 통일
+    }));
+    activateTab("profile");
+
+    /* -------------- 높이 통일(프로필 탭 기준) -------------- */
+    const leftCard  = document.getElementById("leftCard");
+    const rightCard = document.getElementById("rightCard");
+    const tabWrap   = document.getElementById("tabContainer");
+    const tabProfile= document.getElementById("tab-profile");
+
+    function lockHeightsToProfile() {
+      // 프로필 탭이 숨겨져 있으면 잠깐 보이게 만들어 정확히 측정
+      const wasHidden = tabProfile.classList.contains("hidden");
+      if (wasHidden) {
+        tabProfile.classList.remove("hidden");
+        tabProfile.style.position = "absolute";
+        tabProfile.style.inset = "0";
+        tabProfile.style.visibility = "hidden";
+        tabProfile.style.pointerEvents = "none";
       }
-      const { user } = await res.json();
-      document.getElementById('emailText').textContent = user.email || '-';
-      document.getElementById('usernameInput').value = user.username || '';
-      const avatar = user.avatar_url || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
-      document.getElementById('avatarPreview').src = avatar;
+
+      requestAnimationFrame(() => {
+        const h = rightCard.offsetHeight; // 프로필 탭이 보이는 상태에서 우측 카드 전체 높이
+        leftCard.style.height  = h + "px";
+        rightCard.style.height = h + "px";
+        tabWrap.style.height   = (tabProfile.offsetHeight) + "px"; // 탭 내용도 프로필 높이로 고정
+
+        if (wasHidden) {
+          // 원래 상태로 복구
+          tabProfile.classList.add("hidden");
+          tabProfile.style.position = "";
+          tabProfile.style.inset = "";
+          tabProfile.style.visibility = "";
+          tabProfile.style.pointerEvents = "";
+        }
+      });
     }
 
-    // 아바타 미리보기 + 간단 용량 체크
-    const avatarInput = document.getElementById('avatarInput');
-    avatarInput.addEventListener('change', (e) => {
+    // 리사이즈 시에도 다시 맞춤(간단 디바운스)
+    let rAF;
+    window.addEventListener("resize", () => {
+      cancelAnimationFrame(rAF);
+      rAF = requestAnimationFrame(lockHeightsToProfile);
+    });
+
+    /* ---------------- 토스트 ---------------- */
+    function toast(msg, ok = true) {
+      const box = document.getElementById("toast");
+      box.innerHTML = `
+        <div class="rounded-xl border ${ok ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-red-200 bg-red-50 text-red-700'} px-4 py-3 shadow">
+          ${msg}
+        </div>`;
+      box.classList.remove("hidden");
+      setTimeout(() => box.classList.add("hidden"), 2000);
+    }
+
+    /* ---------------- 모달 ---------------- */
+    const modal = document.getElementById("modal");
+    function openModal() { modal.classList.remove("hidden"); modal.classList.add("flex"); }
+    function closeModal() { modal.classList.add("hidden"); modal.classList.remove("flex"); }
+    document.getElementById("modalCancel").onclick = closeModal;
+
+    document.getElementById("togglePw").addEventListener("click", () => {
+      const input = document.getElementById("deletePassword");
+      const btn = document.getElementById("togglePw");
+      if (input.type === "password") { input.type = "text"; btn.textContent = "숨기기"; }
+      else { input.type = "password"; btn.textContent = "보기"; }
+    });
+
+    /* ---------------- 사용자 정보 로드 ---------------- */
+    async function loadMe() {
+      const res = await fetch("/users/me");
+      if (!res.ok) { location.href = "login.html"; return; }
+      const { user } = await res.json();
+
+      const avatar = user.avatar_url || "https://cdn-icons-png.flaticon.com/512/3177/3177440.png";
+      document.getElementById("avatarPreview").src = avatar;
+
+      document.getElementById("usernameText").textContent = user.username || "-";
+      document.getElementById("emailText").textContent = user.email || "-";
+      document.getElementById("usernameBadge").textContent = user.username || "-";
+      document.getElementById("emailBadge").textContent = user.email || "-";
+      document.getElementById("usernameInput").value = user.username || "";
+
+      // 사용자 정보가 렌더된 뒤 높이 확정
+      lockHeightsToProfile();
+    }
+
+    /* ----------- 아바타 미리보기/용량 체크 ----------- */
+    const avatarInput = document.getElementById("avatarInput");
+    avatarInput.addEventListener("change", (e) => {
       const file = e.target.files?.[0]; if (!file) return;
       if (file.size > 5 * 1024 * 1024) {
-        e.target.value = '';
-        showMsg('updateMsg', '이미지는 최대 5MB까지 업로드 가능합니다.', false);
+        e.target.value = "";
+        toast("이미지는 최대 5MB까지 업로드 가능합니다.", false);
         return;
       }
-      const url = URL.createObjectURL(file);
-      document.getElementById('avatarPreview').src = url;
+      document.getElementById("avatarPreview").src = URL.createObjectURL(file);
+      // 프로필 탭 내용 높이가 변할 수 있으니 다시 고정
+      lockHeightsToProfile();
     });
 
-    // 메시지 헬퍼
-    function showMsg(id, text, ok = true) {
-      const el = document.getElementById(id);
-      el.textContent = text;
-      el.className = `mt-2 text-sm ${ok ? 'text-green-600' : 'text-red-600'}`;
-      el.classList.remove('hidden');
-    }
-
-    // 프로필 저장
-    document.getElementById('updateForm').addEventListener('submit', async (e) => {
+    /* ---------------- 폼 액션 ---------------- */
+    document.getElementById("updateForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const form = new FormData(e.target);
-      const res = await fetch('/users/update', { method: 'POST', body: form });
+      const res = await fetch("/users/update", { method: "POST", body: form });
       const data = await res.json();
       if (res.ok) {
-        showMsg('updateMsg', data.message || '저장되었습니다.', true);
-        await loadMe();
+        toast(data.message || "저장되었습니다.");
+        await loadMe(); // 내용 갱신 후 높이 재고정
       } else {
-        showMsg('updateMsg', data.detail || '저장 중 오류가 발생했습니다.', false);
+        toast(data.detail || "저장 중 오류가 발생했습니다.", false);
       }
     });
 
-    // 비밀번호 변경
-    document.getElementById('pwForm').addEventListener('submit', async (e) => {
+    document.getElementById("pwForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const form = new FormData(e.target);
-      const res = await fetch('/users/change-password', { method: 'POST', body: form });
+      const res = await fetch("/users/change-password", { method: "POST", body: form });
       const data = await res.json();
       if (res.ok) {
-        showMsg('pwMsg', data.message || '비밀번호가 변경되었습니다.', true);
+        toast(data.message || "비밀번호가 변경되었습니다.");
         e.target.reset();
+        // 비번 탭은 높이 유지(프로필 기준 고정)
       } else {
-        showMsg('pwMsg', data.detail || '변경 중 오류가 발생했습니다.', false);
+        toast(data.detail || "변경 중 오류가 발생했습니다.", false);
       }
     });
 
-    // 로그아웃
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-      const res = await fetch('/users/logout', { method: 'POST' });
+    document.getElementById("logoutBtn").addEventListener("click", async () => {
+      const res = await fetch("/users/logout", { method: "POST" });
       if (res.ok) {
-        showMsg('logoutMsg', '로그아웃 되었습니다.', true);
-        setTimeout(() => location.href = 'login.html', 500);
+        toast("로그아웃 되었습니다.");
+        setTimeout(() => location.href = "login.html", 600);
       } else {
-        showMsg('logoutMsg', '로그아웃 중 오류가 발생했습니다.', false);
+        toast("로그아웃 중 오류가 발생했습니다.", false);
       }
     });
 
-    // 초기화
+    document.getElementById("deleteBtn").addEventListener("click", openModal);
+    document.getElementById("modalConfirm").addEventListener("click", async () => {
+      const pw = document.getElementById("deletePassword").value.trim();
+      if (!pw) { toast("비밀번호를 입력해 주세요.", false); return; }
+
+      const fd = new FormData();
+      fd.append("password", pw);
+
+      try {
+        const res = await fetch("/users/delete", { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast(data.detail || "회원탈퇴에 실패했습니다.", false);
+          return;
+        }
+        toast(data.message || "회원탈퇴가 완료되었습니다.");
+        setTimeout(() => location.href = "login.html", 800);
+      } catch {
+        toast("회원탈퇴 중 오류가 발생했습니다.", false);
+      } finally {
+        closeModal();
+        const input = document.getElementById("deletePassword");
+        input.value = ""; input.type = "password"; document.getElementById("togglePw").textContent = "보기";
+      }
+    });
+
+    document.getElementById("deletePassword").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") document.getElementById("modalConfirm").click();
+    });
+
+    // init
     loadMe();
   </script>
 </body>

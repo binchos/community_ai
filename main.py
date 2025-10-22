@@ -110,12 +110,32 @@ def login_user(request: Request,email:str=Form(...),password:str=Form(...)):
         request.session["user"]={"id":db_user["id"], "username":db_user["username"],"email":db_user["email"]}
 
     return {"message": f"{db_user['username']}님 로그인 성공!"}
+@app.post("/users/delete")
+def delete_user(request: Request, password:str=Form(...)):
+    user=ensure_logged_in(request)
+    with conn.cursor() as cur:
+        cur.execute("SELECT password FROM users WHERE id=%s", (user["id"],))
+        row=cur.fetchone()
+        if not row or not bcrypt.checkpw(password.encode("utf-8"),row["password"].encode("utf-8")):
+            raise HTTPException(status_code=401, detail="비밀번호가 올바르지 않습니다.")
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM comments WHERE user_id=%s", (user["id"],))
+            cur.execute("DELETE FROM posts WHERE user_id=%s", (user["id"],))
+            cur.execute("DELETE FROM users WHERE id=%s", (user["id"],))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    request.session.pop("user",None)
+    return {"message": "회원탈퇴가 완료되었습니다."}
 
 @app.get("/users/me")
 def get_me(request: Request):
     user=request.session.get("user")
     if not user:
-        raise HTTPException(status_code=400,detail="로그인이 필요합니다.")
+        raise HTTPException(status_code=401,detail="로그인이 필요합니다.")
     with conn.cursor() as cur:
         cur.execute("SELECT avatar_url FROM users WHERE id=%s", (user["id"],))
         row = cur.fetchone()
