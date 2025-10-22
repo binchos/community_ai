@@ -279,30 +279,61 @@ if (post.image_url) {
           <p class="mt-2 text-gray-800 whitespace-pre-line">${c.content}</p>
         `;
                 // ✅ 수정 버튼 이벤트
-        const editBtn = el.querySelector('.edit-comment');
-        if (editBtn) {
-            editBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                const cid = Number(editBtn.dataset.id);
-                const oldContent = c.content;
-                const newContent = prompt('댓글을 수정하세요:', oldContent);
-                if (!newContent || newContent.trim() === oldContent.trim()) return;
+       const editBtn = el.querySelector('.edit-comment');
+if (editBtn) {
+  editBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const cid = Number(editBtn.dataset.id);
 
-                try {
-                    const fd = new FormData();
-                    fd.append('content', newContent.trim());
-                    const resp = await fetch(`/comments/${cid}`, { method: 'PUT', body: fd });
-                    const body = await resp.json().catch(() => ({}));
-                    if (!resp.ok) {
-                    alert(body.detail || '수정 실패');
-                    return;
-                      }
-                    await loadComments();
-                 } catch {
-                alert('수정 실패');
-                     }
-                  });
-                }
+    // 이미 수정 중인 댓글이 있으면 무시
+    if (el.querySelector('.edit-area')) return;
+
+    // 기존 내용 숨기고 textarea 삽입
+    const contentP = el.querySelector('p');
+    const originalText = contentP.textContent;
+    contentP.style.display = 'none';
+
+    const editDiv = document.createElement('div');
+    editDiv.className = 'edit-area mt-2';
+    editDiv.innerHTML = `
+      <textarea class="w-full border rounded-lg p-2 text-sm">${originalText}</textarea>
+      <div class="mt-2 flex gap-2 justify-end">
+        <button class="save-edit bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-700">변경하기</button>
+        <button class="cancel-edit border px-3 py-1.5 rounded-lg text-sm hover:bg-gray-50">취소</button>
+      </div>
+    `;
+    contentP.after(editDiv);
+
+    // 변경하기 버튼
+    editDiv.querySelector('.save-edit').addEventListener('click', async () => {
+      const newContent = editDiv.querySelector('textarea').value.trim();
+      if (!newContent || newContent === originalText) {
+        alert('내용을 변경해주세요.');
+        return;
+      }
+      try {
+        const fd = new FormData();
+        fd.append('content', newContent);
+        const resp = await fetch(`/comments/${cid}`, { method: 'PUT', body: fd });
+        const body = await resp.json().catch(() => ({}));
+        if (!resp.ok) {
+          alert(body.detail || '수정 실패');
+          return;
+        }
+        await loadComments();
+      } catch {
+        alert('수정 실패');
+      }
+    });
+
+    // 취소 버튼
+    editDiv.querySelector('.cancel-edit').addEventListener('click', () => {
+      editDiv.remove();
+      contentP.style.display = '';
+    });
+  });
+}
+
 
         // ✅ 삭제 버튼 이벤트
         const delBtn = el.querySelector('.delete-comment');
