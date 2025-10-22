@@ -141,10 +141,12 @@ def get_me(request: Request):
         row = cur.fetchone()
     return {
         "user": {
-                    "username": user["username"],
-                    "email": user["email"],
-                    "avatar_url": (row or {}).get("avatar_url"),
-                }}
+            "id": user["id"],
+            "username": user["username"],
+            "email": user["email"],
+            "avatar_url": (row or {}).get("avatar_url"),
+        }
+    }
 
 @app.post("/users/update")
 async def update_user(request: Request,username:str=Form(...),avatar:UploadFile | None=File(None),):
@@ -243,6 +245,39 @@ def create_post(request: Request, title:str=Form(...), content:str=Form(...)):
         post = cur.fetchone()
     return{"message":"게시글이 작성되었습니다.","post":post}
 
+@app.get("/posts/{post_id}")
+def get_post(post_id:int, request:Request):
+    user=ensure_logged_in(request)
+    with conn.cursor() as cur:
+        cur.execute("""
+                    SELECT p.id,
+                           p.user_id,
+                           p.title,
+                           p.content,
+                           p.created_date,
+                           p.view_count,
+                           u.username,
+                           IFNULL(lc.cnt, 0)             AS like_count,
+                           IFNULL(cc.cnt, 0)             AS comment_count,
+                           EXISTS(SELECT 1
+                                  FROM likes l2
+                                  WHERE l2.post_id = p.id
+                                    AND l2.user_id = %s) AS liked
+                    FROM posts p
+                             JOIN users u ON u.id = p.user_id
+                             LEFT JOIN (SELECT post_id, COUNT(*) cnt FROM likes GROUP BY post_id) lc
+                                       ON lc.post_id = p.id
+                             LEFT JOIN (SELECT post_id, COUNT(*) cnt FROM comments GROUP BY post_id) cc
+                                       ON cc.post_id = p.id
+                    WHERE p.id = %s
+                    """, (user["id"], post_id))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+    return row
+
+
+
 @app.get("/posts")
 def get_posts(request: Request):
     user = ensure_logged_in(request)
@@ -277,6 +312,20 @@ def get_posts(request: Request):
         """, (user["id"],))
         rows = cur.fetchall()
     return {"posts": rows}
+
+@app.delete("/posts/{post_id}")
+def delete_post(request: Request, post_id: int):
+    user = ensure_logged_in(request)
+    with conn.cursor() as cur:
+        cur.execute("SELECT user_id FROM posts WHERE id = %s", (post_id,))
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="게시글을 찾을 수 없습니다.")
+        if row["user_id"] != user["id"]:
+            raise HTTPException(status_code=403, detail="본인 글만 삭제할 수 있습니다.")
+        cur.execute("DELETE FROM posts WHERE id = %s",(post_id,))
+        conn.commit()
+    return {"message": "삭제되었습니다."}
 
 @app.post("/posts/{post_id}/like")
 def toggle_like(request: Request, post_id:int):

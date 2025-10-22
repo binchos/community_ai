@@ -36,10 +36,18 @@
           <span id="statComments">💬 0</span>
           <span id="statViews">👁️ 0</span>
         </div>
-        <button id="likeBtn"
-                class="rounded-xl px-4 py-2 text-sm font-medium border hover:bg-gray-50">
-          👍 좋아요
-        </button>
+     <div class="flex items-center gap-2">
+    <button id="likeBtn"
+            class="rounded-xl px-4 py-2 text-sm font-medium border hover:bg-gray-50">
+      👍 좋아요
+    </button>
+
+    <!-- ✅ 삭제 버튼: 기본 hidden, 작성자일 때만 보이게 -->
+    <button id="deleteBtn"
+            class="hidden rounded-xl px-4 py-2 text-sm font-medium border text-red-600 hover:bg-red-50">
+      🗑 삭제
+    </button>
+  </div>
       </div>
 
       <div id="content" class="mt-6 whitespace-pre-line text-gray-800"></div>
@@ -80,6 +88,8 @@
           return;
         }
         const { user } = await res.json();
+        window.currentUser = user;
+
         const avatar = user.avatar_url || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
         nav.innerHTML = `
           <button onclick="location.href='mypage.html'" class="flex items-center gap-2 rounded-full border px-2 py-1.5 hover:bg-gray-50">
@@ -142,7 +152,24 @@
 
       // 좋아요 버튼 상태
       setLikeBtn(!!post.liked);
-
+      const deleteBtn = document.getElementById('deleteBtn');
+        if (window.currentUser && window.currentUser.username && post.username && window.currentUser.username === post.username) {deleteBtn.classList.remove('hidden');
+        deleteBtn.onclick = async () => {
+            if (!confirm('정말 삭제할까요? 되돌릴 수 없습니다.')) return;
+            try {
+                const r = await fetch(`/posts/${postId}`, { method: 'DELETE' });
+                const data = await r.json().catch(()=>({}));
+                if (!r.ok) {
+                    alert(data.detail || '삭제 실패');
+                    return;
+                }
+                alert(data.message || '삭제되었습니다.');
+                location.href = 'index.html';
+                } catch {
+                alert('삭제 실패');
+                }
+            };
+        }
       // 버튼 핸들러
       document.getElementById('likeBtn').onclick = async () => {
         try {
