@@ -29,94 +29,156 @@
     <h2 class="text-xl font-semibold text-gray-900 mt-6 mb-3">최근 글</h2>
 
     <div id="posts" class="space-y-3"></div>
+      <div id="sentinel" class="h-10"></div>
   </main>
 
   <script>
-    async function renderHeader() {
-      const nav = document.getElementById('navRight');
-      try {
-        const res = await fetch('/users/me');
-        if (!res.ok) {
-          nav.innerHTML = `
-            <button class="rounded-xl border px-3 py-1.5 text-sm hover:bg-gray-50" onclick="location.href='login.html'">로그인</button>
-            <button class="rounded-xl bg-gray-900 text-white px-3 py-1.5 text-sm hover:bg-black" onclick="location.href='register.html'">회원가입</button>
-          `;
-          return;
-        }
-        const { user } = await res.json();
-        const avatar = user.avatar_url || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
+  async function renderHeader() {
+    const nav = document.getElementById('navRight');
+    try {
+      const res = await fetch('/users/me');
+      if (!res.ok) {
         nav.innerHTML = `
-          <button onclick="location.href='mypage.html'" class="flex items-center gap-2 rounded-full border px-2 py-1.5 hover:bg-gray-50">
-            <img src="${avatar}" class="w-7 h-7 rounded-full object-cover">
-            <span class="text-sm font-medium text-gray-800">${user.username}</span>
-          </button>
+          <button class="rounded-xl border px-3 py-1.5 text-sm hover:bg-gray-50" onclick="location.href='login.html'">로그인</button>
+          <button class="rounded-xl bg-gray-900 text-white px-3 py-1.5 text-sm hover:bg-black" onclick="location.href='register.html'">회원가입</button>
         `;
-      } catch {
-        nav.innerHTML = `<button class="rounded-xl border px-3 py-1.5 text-sm" onclick="location.href='login.html'">로그인</button>`;
+        return;
       }
+      const { user } = await res.json();
+      const avatar = user.avatar_url || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
+      nav.innerHTML = `
+        <button onclick="location.href='mypage.html'" class="flex items-center gap-2 rounded-full border px-2 py-1.5 hover:bg-gray-50">
+          <img src="${avatar}" class="w-7 h-7 rounded-full object-cover">
+          <span class="text-sm font-medium text-gray-800">${user.username}</span>
+        </button>
+      `;
+    } catch {
+      nav.innerHTML = `<button class="rounded-xl border px-3 py-1.5 text-sm" onclick="location.href='login.html'">로그인</button>`;
+    }
+  }
+
+  // ✅ 커서 페이징 상태
+  let nextCursor = null;   // 다음 요청에 넘길 cursor (마지막 글 id)
+  let loading = false;     // 중복요청 방지
+  let done = false;        // 더 가져올 게 없는 상태
+  const LIMIT = 10;
+
+  function renderPostCard(p) {
+    const ts = p.created_date ? new Date(p.created_date).toLocaleString() : '';
+    const avatar = p.author_avatar || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
+
+    const el = document.createElement('article');
+    el.className = 'bg-white rounded-xl border p-5 cursor-pointer hover:bg-gray-50 transition';
+    el.innerHTML = `
+      <!-- 작성자 메타 (아바타/닉네임/시간) -->
+      <div class="flex items-center gap-3">
+        <img src="${avatar}" class="w-8 h-8 rounded-full object-cover" alt="avatar">
+        <div>
+          <div class="text-sm font-medium text-gray-800">${p.username || '-'}</div>
+          <div class="text-xs text-gray-500">${ts}</div>
+        </div>
+      </div>
+
+      <h3 class="mt-3 text-lg font-semibold text-blue-700">${p.title}</h3>
+      <p class="mt-1 text-gray-700 whitespace-pre-line">${p.content}</p>
+
+      <div class="mt-3 flex items-center gap-4 text-sm text-gray-500">
+        <span>👍 ${p.like_count ?? 0}</span>
+        <span>💬 ${p.comment_count ?? 0}</span>
+        <span>👁️ ${p.view_count ?? 0}</span>
+      </div>
+    `;
+    el.addEventListener('click', () => location.href = `post_detail.html?id=${p.id}`);
+    return el;
+  }
+
+ async function loadMore() {
+  if (loading || done) return;
+  loading = true;
+
+  const box = document.getElementById('posts');
+  const sentinel = document.getElementById('sentinel');
+
+  // 로딩 표시
+  sentinel.textContent = '불러오는 중…';
+
+  try {
+    const qs = new URLSearchParams({ limit: String(LIMIT) });
+    if (nextCursor) qs.set('cursor', String(nextCursor));
+
+    const res = await fetch(`/posts?${qs.toString()}`);
+    if (!res.ok) {
+      if (res.status === 401) {
+        box.innerHTML = `
+          <div class="bg-white rounded-xl border p-6 text-center text-gray-500">
+            🔒 로그인 후 게시글을 볼 수 있습니다.
+          </div>`;
+        observer.disconnect?.();
+        done = true;
+        // 문구 대신 센티넬 제거
+        sentinel.remove();
+        return;
+      }
+      throw new Error('load failed');
     }
 
-    async function loadPosts() {
-      const box = document.getElementById('posts');
-      try {
-        const res = await fetch('/posts');
-        if (!res.ok) {
-          box.innerHTML = `
-            <div class="bg-white rounded-xl border p-6 text-center text-gray-500">
-              🔒 로그인 후 게시글을 볼 수 있습니다.
-            </div>`;
-          return;
-        }
-        const data = await res.json();
-        if (!data.posts?.length) {
-          box.innerHTML = `
-            <div class="bg-white rounded-xl border p-6 text-center text-gray-500">
-              아직 게시글이 없습니다.
-            </div>`;
-          return;
-        }
-        box.innerHTML = '';
-        data.posts.forEach(p => {
-            const ts = p.created_date ? new Date(p.created_date).toLocaleString() : '';
-            const avatar = p.author_avatar || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
+    const data = await res.json();
+    const list = data.posts || [];
 
-            const el = document.createElement('article');
-            el.className = 'bg-white rounded-xl border p-5';
-
-            el.innerHTML = `
-    <!-- 작성자 메타 (아바타/닉네임/시간) -->
-             <div class="flex items-center gap-3">
-                 <img src="${avatar}" class="w-8 h-8 rounded-full object-cover" alt="avatar">
-                 <div>
-                  <div class="text-sm font-medium text-gray-800">${p.username || '-'}</div>
-                  <div class="text-xs text-gray-500">${ts}</div>
-                </div>
-            </div>
-
-            <h3 class="mt-3 text-lg font-semibold text-blue-700">${p.title}</h3>
-            <p class="mt-1 text-gray-700 whitespace-pre-line">${p.content}</p>
-
-           <div class="mt-3 flex items-center gap-4 text-sm text-gray-500">
-             <span>👍 ${p.like_count ?? 0}</span>
-              <span>💬 ${p.comment_count ?? 0}</span>
-               <span>👁️ ${p.view_count ?? 0}</span>
-             </div>
-  `;
-
-  el.classList.add('cursor-pointer','hover:bg-gray-50','transition');
-  el.addEventListener('click', () => location.href = `post_detail.html?id=${p.id}`);
-  box.appendChild(el);
-});
-
-      } catch {
-        box.innerHTML = `<div class="bg-white rounded-xl border p-6 text-center text-red-500">게시글을 불러오는 중 오류가 발생했습니다.</div>`;
-      }
+    // 첫 페이지가 비었을 때
+    if (!nextCursor && list.length === 0) {
+      box.innerHTML = `
+        <div class="bg-white rounded-xl border p-6 text-center text-gray-500">
+          아직 게시글이 없습니다.
+        </div>`;
+      done = true;
+      observer.disconnect?.();
+      sentinel.remove(); // ✅ 문구 대신 그냥 없앰
+      return;
     }
 
-    (async function init() {
-      await renderHeader();
-      await loadPosts();
-    })();
-  </script>
+    // 카드 추가
+    list.forEach(p => box.appendChild(renderPostCard(p)));
+
+    // 다음 커서 갱신
+    nextCursor = data.next_cursor || null;
+
+    if (!nextCursor) {
+      // ✅ 더 없으면 문구 없이 조용히 종료
+      done = true;
+      observer.disconnect?.();
+      sentinel.remove();
+    } else {
+      sentinel.textContent = ''; // 다음 로드를 기다림
+    }
+  } catch (e) {
+    // 오류 문구도 싫다면 아래 줄을 sentinel.remove()로 바꿔도 됩니다.
+    sentinel.textContent = '불러오는 중 오류가 발생했습니다.';
+  } finally {
+    loading = false;
+  }
+}
+
+
+  // ✅ IntersectionObserver로 무한 스크롤
+  let observer;
+  function setupObserver() {
+    const sentinel = document.getElementById('sentinel');
+    observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) loadMore();
+      });
+    }, { rootMargin: '200px 0px' }); // 미리 로드
+    observer.observe(sentinel);
+  }
+
+  (async function init() {
+    await renderHeader();
+    setupObserver();
+    // 첫 페이지 로드
+    await loadMore();
+  })();
+</script>
+
 </body>
 </html>

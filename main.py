@@ -279,41 +279,60 @@ def get_post(post_id:int, request:Request):
 
 
 
+# 기존 @app.get("/posts") 함수를 이 코드로 교체
 @app.get("/posts")
-def get_posts(request: Request):
+def get_posts(request: Request, cursor: int | None = None, limit: int = 10):
     user = ensure_logged_in(request)
+
+    # limit 가드 (악성 값 방지)
+    limit = max(1, min(int(limit), 30))  # 1~30 사이
+
+    where_sql = ""
+    params = [user["id"]]
+
+    # 커서가 있으면 그보다 작은 id만(내림차순 페이징)
+    if cursor:
+        where_sql = "AND p.id < %s"
+        params.append(cursor)
+
+    sql = f"""
+        SELECT
+          p.id,
+          p.title,
+          p.content,
+          u.username,
+          u.avatar_url AS author_avatar,
+          p.created_date,
+          p.view_count,
+          IFNULL(lc.cnt, 0)   AS like_count,
+          IFNULL(cc.cnt, 0)   AS comment_count,
+          EXISTS(
+            SELECT 1 FROM likes l2
+             WHERE l2.post_id = p.id AND l2.user_id = %s
+          )                   AS liked
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        LEFT JOIN (SELECT post_id, COUNT(*) AS cnt FROM likes GROUP BY post_id) lc ON lc.post_id = p.id
+        LEFT JOIN (SELECT post_id, COUNT(*) AS cnt FROM comments GROUP BY post_id) cc ON cc.post_id = p.id
+        WHERE 1=1 {where_sql}
+        ORDER BY p.id DESC
+        LIMIT %s
+    """
+
+    # limit+1로 더 가져와서 다음 페이지 유무 판단
+    params.append(limit + 1)
+
     with conn.cursor() as cur:
-        cur.execute("""
-            SELECT
-              p.id,
-              p.title,
-              p.content,
-              u.username,
-              u.avatar_url AS author_avatar,  
-              p.created_date,
-              p.view_count,
-              IFNULL(lc.cnt, 0)   AS like_count,
-              IFNULL(cc.cnt, 0)   AS comment_count,
-              EXISTS(
-                SELECT 1 FROM likes l2
-                 WHERE l2.post_id = p.id AND l2.user_id = %s
-              )                   AS liked
-            FROM posts p
-            JOIN users u ON p.user_id = u.id
-            LEFT JOIN (
-              SELECT post_id, COUNT(*) AS cnt
-                FROM likes
-               GROUP BY post_id
-            ) lc ON lc.post_id = p.id
-            LEFT JOIN (
-              SELECT post_id, COUNT(*) AS cnt
-                FROM comments
-               GROUP BY post_id
-            ) cc ON cc.post_id = p.id
-            ORDER BY p.id DESC
-        """, (user["id"],))
+        cur.execute(sql, tuple(params))
         rows = cur.fetchall()
-    return {"posts": rows}
+
+    next_cursor = None
+    if len(rows) > limit:
+        next_cursor = rows[-1]["id"]  # 다음 요청에서 cursor로 사용
+        rows = rows[:-1]              # 초과분 제거
+
+    return {"posts": rows, "next_cursor": next_cursor}
+
 
 @app.delete("/posts/{post_id}")
 def delete_post(request: Request, post_id: int):
