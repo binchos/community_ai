@@ -2,29 +2,211 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>새 글 작성</title>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    :root { --border:#e5e7eb; --text:#1f2937; --muted:#6b7280; --primary:#2563eb; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background:#f9fafb; color:var(--text);
+      font: 16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif;
+    }
+
+    /* ===== Header (홈/디테일과 동일한 형태) ===== */
+    .header {
+      position: sticky; top: 0; z-index: 10;
+      background: rgba(255,255,255,.85);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border-bottom: 1px solid var(--border);
+    }
+   .header-inner {
+  max-width: 56rem;     /* 56rem = Tailwind max-w-4xl (896px) */
+  margin: 0 auto;
+  height: 56px;         /* h-14 */
+  padding: 0 1rem;      /* px-4 */
+  display: flex; align-items: center; justify-content: space-between;
+}
+    .brand { font-weight: 800; font-size: 18px; letter-spacing: .2px; cursor: pointer; color:#111827; }
+    .nav-right { display:flex; align-items:center; gap:8px; }
+    .chip {
+      display:flex; align-items:center; gap:8px;
+      border:1px solid var(--border); border-radius:9999px; padding:4px 10px; background:#fff;
+      cursor:pointer;
+    }
+    .chip img { width:28px; height:28px; border-radius:50%; object-fit:cover; }
+    .hbtn {
+      border:1px solid var(--border); background:#fff; color:#111827;
+      padding:6px 10px; border-radius:10px; font-size:13px; cursor:pointer;
+    }
+    .hbtn.primary { background:#111827; color:#fff; border-color:#111827; }
+    .hbtn:hover { filter:brightness(0.98); }
+
+    /* ===== Page layout ===== */
+.container {
+  max-width: 56rem;     /* ← 720px에서 변경 */
+  margin: clamp(80px, 18vh, 160px) auto 40px;
+  padding: 0 1rem;      /* ← 20px에서 변경 */
+}
+    h2 { margin: 0 0 14px; font-size: 20px; font-weight: 700; }
+
+    .card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:20px; }
+
+    .stack > * + * { margin-top: 12px; }
+
+    label { display:block; font-size:13px; color:var(--muted); }
+
+    input[type="text"], textarea {
+      width:100%;
+      border:1px solid var(--border); border-radius:12px;
+      padding:12px 14px;
+      background:#fff; outline:none; font-size:16px;
+    }
+    input[type="text"]:focus, textarea:focus {
+      border-color:var(--primary); box-shadow:0 0 0 3px rgb(37 99 235 / 12%);
+    }
+    textarea {
+      min-height: 180px; resize: vertical;
+      white-space: pre-wrap; word-break: break-word;
+    }
+
+    .row { display:flex; gap:10px; }
+    .btn {
+      border:1px solid var(--border); border-radius:12px; cursor:pointer;
+      padding:10px 14px; font-size:15px;
+      background:#111827; color:#fff;
+    }
+    .btn.secondary { background:#fff; color:#111827; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    .btn:hover { filter:brightness(0.98); }
+
+    .preview { display:none; }
+    .preview img {
+      display:block; max-width:100%; max-height:380px; object-fit:contain;
+      border:1px solid var(--border); border-radius:12px; background:#f9fafb;
+    }
+
+    @media (max-width: 420px) {
+      body { font-size: 15px; }
+      .container { padding: 0 16px; }
+      .header-inner { padding: 0 12px; }
+    }
+
+  </style>
 </head>
 <body>
+
+  <!-- ===== 공통 헤더 ===== -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand" onclick="location.href='index.html'">Community</div>
+      <div id="navRight" class="nav-right">
+        <!-- JS에서 로그인 여부에 따라 교체 -->
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== 본문 ===== -->
   <div class="container">
-    <h2>새 글 작성</h2>
-    <form id="postForm">
-      <input name="title" placeholder="제목" required><br>
-      <textarea name="content" placeholder="내용" required rows="6"></textarea><br>
-      <button type="submit">작성</button>
-    </form>
-    <button onclick="window.location='index.html'">목록으로</button>
+    <div class="card">
+      <h2>새 글 작성</h2>
+
+      <form id="postForm" class="stack" enctype="multipart/form-data">
+        <div class="stack">
+          <label for="title">제목</label>
+          <input id="title" name="title" type="text" placeholder="제목을 입력하세요" required maxlength="120">
+        </div>
+
+        <div class="stack">
+          <label for="content">내용</label>
+          <textarea id="content" name="content" placeholder="내용을 입력하세요" required></textarea>
+        </div>
+
+        <div class="stack">
+          <label for="imageInput">이미지 (선택)</label>
+          <input id="imageInput" type="file" name="image" accept="image/*">
+          <div id="preview" class="preview">
+            <img id="previewImg" alt="미리보기">
+          </div>
+        </div>
+
+        <div class="row">
+          <button id="submitBtn" type="submit" class="btn">작성</button>
+          <button type="button" class="btn secondary" onclick="location.href='index.html'">목록으로</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <script>
-    document.getElementById("postForm").onsubmit = async (e) => {
+    // ===== 헤더: 로그인 상태 렌더링 (홈/디테일과 동일 로직)
+    async function renderHeader() {
+      const nav = document.getElementById('navRight');
+      try {
+        const res = await fetch('/users/me');
+        if (!res.ok) {
+          nav.innerHTML = `
+            <button class="hbtn" onclick="location.href='login.html'">로그인</button>
+            <button class="hbtn primary" onclick="location.href='register.html'">회원가입</button>
+          `;
+          return;
+        }
+        const { user } = await res.json();
+        const avatar = user.avatar_url || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
+
+        nav.innerHTML = `
+          <button class="chip" onclick="location.href='mypage.html'">
+            <img src="${avatar}" alt="avatar">
+            <span style="font-size:13px; font-weight:600; color:#111827;">${user.username}</span>
+          </button>
+        `;
+      } catch {
+        nav.innerHTML = `<button class="hbtn" onclick="location.href='login.html'">로그인</button>`;
+      }
+    }
+
+    // ===== 새 글 작성 폼 =====
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const previewImg = document.getElementById('previewImg');
+    const submitBtn = document.getElementById('submitBtn');
+    const formEl = document.getElementById('postForm');
+
+    imageInput.addEventListener('change', () => {
+      const f = imageInput.files?.[0];
+      if (!f) { preview.style.display = 'none'; previewImg.src = ''; return; }
+      if (!f.type.startsWith('image/')) { alert('이미지 파일만 업로드할 수 있어요.'); imageInput.value=''; preview.style.display='none'; return; }
+      if (f.size > 5 * 1024 * 1024) { alert('이미지는 최대 5MB까지 가능해요.'); imageInput.value=''; preview.style.display='none'; return; }
+      const reader = new FileReader();
+      reader.onload = e => { previewImg.src = e.target.result; preview.style.display = 'block'; };
+      reader.readAsDataURL(f);
+    });
+
+    formEl.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const form = new FormData(e.target);
-      const res = await fetch("/post", { method: "POST", body: form });
-      const data = await res.json();
-      alert(data.message);
-      if (res.ok) window.location = "index.html";
-    };
+      submitBtn.disabled = true;
+      const orig = submitBtn.textContent;
+      submitBtn.textContent = '작성 중…';
+
+      try {
+        const form = new FormData(formEl); // title, content, image 포함
+        const res = await fetch('/post', { method: 'POST', body: form });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) { alert(data.detail || '작성에 실패했습니다.'); return; }
+        alert(data.message || '작성되었습니다.');
+        location.href = 'index.html';
+      } catch {
+        alert('작성 중 오류가 발생했습니다.');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = orig;
+      }
+    });
+
+    // 초기화
+    (async function init() {
+      await renderHeader();
+    })();
   </script>
 </body>
 </html>

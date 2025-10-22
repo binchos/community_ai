@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <title>게시글 상세 · Community</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
 </head>
 <body class="bg-gray-50 min-h-screen">
   <!-- 헤더 -->
@@ -32,6 +33,7 @@
 
       <h2 id="title" class="mt-2 text-2xl font-bold text-gray-900 break-words">제목</h2>
  <div id="content" class="mt-6 whitespace-pre-line text-gray-800"></div>
+        <div id="imageArea" class="mt-3"></div>
       <!-- 상단 통계 / 좋아요 버튼 -->
       <div class="mt-3 flex items-center justify-between">
         <div class="flex items-center gap-4 text-sm text-gray-500">
@@ -146,7 +148,16 @@
       // 제목/본문
         document.getElementById('title').textContent = post.title || '-';
         document.getElementById('content').textContent = post.content || '';
-
+        const imageArea = document.getElementById('imageArea');
+if (post.image_url) {
+  imageArea.innerHTML = `
+    <img src="${post.image_url}"
+         alt=""
+         class="w-full rounded-xl border object-contain max-h-[28rem]">
+  `;
+} else {
+  imageArea.innerHTML = ''; // 이미지가 없으면 비움
+}
 // 아바타/이름/시간 — 홈 목록과 동일한 형태
         const avatar = post.author_avatar || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
         const avatarEl = document.getElementById('authorAvatar');

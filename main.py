@@ -228,22 +228,50 @@ def logout(request: Request):
     request.session.pop("user", None)
     return{"message":"로그아웃 되었습니다."}
 @app.post("/post")
-def create_post(request: Request, title:str=Form(...), content:str=Form(...)):
-    user=ensure_logged_in(request)
+async def create_post(
+    request: Request,
+    title: str = Form(...),
+    content: str = Form(...),
+    image: UploadFile | None = File(None),   # ✅ 추가
+):
+    user = ensure_logged_in(request)
 
+    image_url = None
+    if image and image.filename:
+      if not (image.content_type and image.content_type.startswith("image/")):
+          raise HTTPException(status_code=400, detail="이미지 파일만 업로드할 수 있습니다.")
+      content_bytes = await image.read()
+      if len(content_bytes) > 5 * 1024 * 1024:
+          raise HTTPException(status_code=400, detail="이미지 용량은 최대 5MB입니다.")
 
-    with conn.cursor() as cur:
-        cur.execute("INSERT INTO posts (user_id, title, content) VALUES (%s, %s, %s)",(user["id"],title,content))
+      ext = ""
+      if "." in image.filename:
+          ext = image.filename.rsplit(".", 1)[-1].lower()
+          if len(ext) > 5:
+              ext = "jpg"
+      fname = f"{uuid4().hex}.{ext or 'jpg'}"
+      fpath = UPLOAD_DIR / fname
+      with open(fpath, "wb") as f:
+          f.write(content_bytes)
+      image_url = f"/static/uploads/{fname}"
 
-        post_id = cur.lastrowid
-        conn.commit()
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT id, title, content, created_date FROM posts WHERE id=%s",
-            (post_id,)
+            "INSERT INTO posts (user_id, title, content, image_url) VALUES (%s, %s, %s, %s)",
+            (user["id"], title, content, image_url),
+        )
+        post_id = cur.lastrowid
+        conn.commit()
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, title, content, image_url, created_date FROM posts WHERE id=%s",
+            (post_id,),
         )
         post = cur.fetchone()
-    return{"message":"게시글이 작성되었습니다.","post":post}
+
+    return {"message": "게시글이 작성되었습니다.", "post": post}
+
 
 @app.get("/posts/{post_id}")
 def get_post(post_id:int, request:Request):
@@ -254,6 +282,7 @@ def get_post(post_id:int, request:Request):
                            p.user_id,
                            p.title,
                            p.content,
+                        p.image_url,
                            p.created_date,
                            p.view_count,
                            u.username,
@@ -301,6 +330,7 @@ def get_posts(request: Request, cursor: int | None = None, limit: int = 10):
           p.title,
           p.content,
           u.username,
+          p.image_url,
           u.avatar_url AS author_avatar,
           p.created_date,
           p.view_count,
