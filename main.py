@@ -1,6 +1,7 @@
 
 
 from fastapi import FastAPI, HTTPException,Request,Form,UploadFile,File, BackgroundTasks
+from torch._export import db
 from transformers import pipeline
 from PIL import Image
 import torch
@@ -13,6 +14,10 @@ from pathlib import Path
 from uuid import uuid4
 import re
 from pydantic import EmailStr
+
+from datetime import datetime
+from fastapi import Depends
+
 BOT_USER_EMAIL = "assistant@system.local"
 BOT_USER_NAME = "AI_assistant"
 USERNAME_RE = re.compile(r'^[A-Za-z0-9가-힣]+$')
@@ -487,7 +492,7 @@ def create_comment(request: Request, post_id:int=Form(...),content:str=Form(...)
 def get_comments(post_id: int):
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT c.id,c.user_id, c.content, u.username,u.avatar_url AS author_avatar, c.created_date
+            SELECT c.id,c.user_id, c.content, u.username,   c.updated_date, u.avatar_url AS author_avatar, c.created_date
             FROM comments c
             JOIN users u ON c.user_id = u.id
             WHERE c.post_id = %s
@@ -510,3 +515,41 @@ def delete_comment(request: Request, comment_id:int):
         cur.execute("DELETE FROM comments WHERE id = %s", (comment_id,))
         conn.commit()
     return {"message":"댓글이 삭제되었습니다."}
+
+@app.put("/comments/{comment_id}")
+def update_comment(
+    request: Request,
+    comment_id: int,
+    content: str = Form(...)
+):
+    user = ensure_logged_in(request)
+    with conn.cursor() as cur:
+        cur.execute("SELECT user_id FROM comments WHERE id = %s", (comment_id,))
+        row=cur.fetchone()
+        if not row:
+            raise HTTPException(404, "댓글이 존재하지 않습니다.")
+        if row["user_id"] != user["id"]:
+            raise HTTPException(403,"수정권한이 없습니다.")
+        cur.execute(
+            "UPDATE comments SET content = %s, updated_date = %s WHERE id = %s",
+            (content.strip(), datetime.utcnow(), comment_id)
+        )
+        conn.commit()
+        cur.execute("""
+                    SELECT c.id,
+                           c.user_id,
+                           c.content,
+                           c.created_date,
+                           c.updated_date,
+                           u.username,
+                           u.avatar_url AS author_avatar
+                    FROM comments c
+                             JOIN users u ON c.user_id = u.id
+                    WHERE c.id = %s
+                    """, (comment_id,))
+        updated = cur.fetchone()
+
+    return {
+        "message": "댓글이 수정되었습니다.",
+        "comment": updated
+    }

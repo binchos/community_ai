@@ -244,7 +244,12 @@ if (post.image_url) {
       data.comments.forEach(c => {
         const ts = c.created_date ? new Date(c.created_date).toLocaleString() : '';
         const isMine = window.currentUser && (c.user_id === window.currentUser.id);  // ✅ 내 댓글?
-
+        let editedLabel = "";
+         if (c.updated_date && c.updated_date !== c.created_date) {
+            const uds = new Date(c.updated_date).toLocaleString();
+         editedLabel = ` <span class="text-xs text-gray-400">(수정됨 ${uds})</span>`;
+         // editedLabel = ' <span class="text-xs text-gray-400">(수정됨)</span>';
+         }
         const el = document.createElement('div');
         el.className = 'rounded-xl border p-4';
 
@@ -255,19 +260,49 @@ if (post.image_url) {
                    class="w-7 h-7 rounded-full object-cover" alt="">
               <div>
                 <div class="text-sm font-medium text-gray-700">${c.username || '-'}</div>
-                <div class="text-xs text-gray-500">${ts}</div>
+                 <div class="text-xs text-gray-500">${ts}${editedLabel}</div>
               </div>
             </div>
 
             ${isMine ? `
+<div class="flex gap-2">
+    <button class="edit-comment text-xs text-blue-600 hover:underline" data-id="${c.id}">
+      수정
+    </button>
               <button class="delete-comment text-xs text-red-600 hover:underline" data-id="${c.id}">
                 삭제
               </button>
+              </div>
             ` : ''}
           </div>
 
           <p class="mt-2 text-gray-800 whitespace-pre-line">${c.content}</p>
         `;
+                // ✅ 수정 버튼 이벤트
+        const editBtn = el.querySelector('.edit-comment');
+        if (editBtn) {
+            editBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const cid = Number(editBtn.dataset.id);
+                const oldContent = c.content;
+                const newContent = prompt('댓글을 수정하세요:', oldContent);
+                if (!newContent || newContent.trim() === oldContent.trim()) return;
+
+                try {
+                    const fd = new FormData();
+                    fd.append('content', newContent.trim());
+                    const resp = await fetch(`/comments/${cid}`, { method: 'PUT', body: fd });
+                    const body = await resp.json().catch(() => ({}));
+                    if (!resp.ok) {
+                    alert(body.detail || '수정 실패');
+                    return;
+                      }
+                    await loadComments();
+                 } catch {
+                alert('수정 실패');
+                     }
+                  });
+                }
 
         // ✅ 삭제 버튼 이벤트
         const delBtn = el.querySelector('.delete-comment');
