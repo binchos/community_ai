@@ -127,25 +127,49 @@ def get_me(request: Request):
                 }}
 
 @app.post("/users/update")
-def update_user(request: Request,username:str=Form(...),email:EmailStr=Form(...)):
+async def update_user(request: Request,username:str=Form(...),avatar:UploadFile | None=File(None),):
+
     user=request.session.get("user")
     if not user:
         raise HTTPException(status_code=400, detail="로그인이 필요합니다.")
+
     username = username.strip()
     if not USERNAME_RE.fullmatch(username):
         raise HTTPException(status_code=400,detail="닉네임은 한글/영문/숫자만 사용 가능합니다. (공백 및 특수문자 불가)")
-    with conn.cursor() as cur:
-        cur.execute("SELECT * FROM users WHERE email = %s AND id !=%s",(str(email),user["id"],))
-        if cur.fetchone():
-            raise HTTPException(status_code=400, detail="이미 사용중인 이메일 입니다.")
 
-        cur.execute("UPDATE users SET username = %s, email= %s WHERE id= %s",(username,str(email),user["id"]))
+    avatar_url =None
+    if avatar and avatar.filename:
+        if not (avatar.content_type and avatar.content_type.startswith("image/")):
+            raise HTTPException(status_code=400, detail="Avatar must be an image file")
+        content= await avatar.read()
+        if len(content)>5*1024*1024:
+            raise HTTPException(status_code=400, detail="Avatar image too large, 5MB is required")
+
+        ext= avatar.filename.rsplit(".", 1)[-1].lower() if "." in avatar.filename else ""
+        if len(ext)>5:
+            ext = "jpg"
+        fname = f"{uuid4().hex}.{ext or 'jpg'}"
+        with open(UPLOAD_DIR / fname, "wb") as f:
+            f.write(content)
+        avatar_url = f"/static/uploads/{fname}"
+
+    with conn.cursor() as cur:
+        if avatar_url is not None:
+            cur.execute(
+                "UPDATE users SET username = %s, avatar_url = %s WHERE id = %s",
+                (username, avatar_url, user["id"])
+            )
+        else:
+            cur.execute(
+                "UPDATE users SET username = %s WHERE id = %s",
+                (username, user["id"])
+            )
         conn.commit()
 
-        request.session["user"]["username"] = username
-        request.session["user"]["email"] = str(email)
+    # 세션 갱신 (이메일은 이제 건드리지 않음)
+    request.session["user"]["username"] = username
 
-    return{"message":"회원정보가 수정되었습니다."}
+    return {"message": "회원정보가 수정되었습니다.", "avatar_url": avatar_url}
 
 def ensure_logged_in(request: Request):
     user = request.session.get("user")

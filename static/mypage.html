@@ -1,26 +1,210 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+  <meta charset="UTF-8" />
+  <title>My Page · Community</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+  <!-- 헤더 -->
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+    <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+      <a href="index.html" class="font-semibold text-gray-800 hover:text-blue-600">← 글 목록으로</a>
+      <h1 class="text-lg font-bold text-gray-900">마이페이지</h1>
+      <div></div>
+    </div>
+  </header>
 
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    <!-- 프로필 카드 -->
+    <section class="bg-white rounded-2xl shadow-sm ring-1 ring-gray-100 p-6">
+      <div class="flex flex-col sm:flex-row gap-6 sm:items-center">
+        <div class="shrink-0">
+          <img id="avatarPreview"
+               src="https://cdn-icons-png.flaticon.com/512/3177/3177440.png"
+               class="w-24 h-24 rounded-full object-cover ring-2 ring-white shadow"
+               alt="avatar">
+        </div>
+        <div class="flex-1">
+          <h2 class="text-xl font-semibold text-gray-900">내 프로필</h2>
+          <p class="text-sm text-gray-500 mt-1" id="emailText">-</p>
+        </div>
+      </div>
+
+      <!-- 탭 버튼 -->
+      <div class="mt-6 grid grid-cols-3 gap-2">
+        <button class="tab-btn active" data-tab="profile">프로필 수정</button>
+        <button class="tab-btn" data-tab="password">비밀번호 변경</button>
+        <button class="tab-btn" data-tab="session">로그아웃</button>
+      </div>
+
+      <!-- 탭 컨테이너 -->
+      <div class="mt-6">
+        <!-- 프로필 수정 -->
+        <div class="tab-pane show" id="profile">
+          <form id="updateForm" class="space-y-5" enctype="multipart/form-data">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">닉네임</label>
+              <input name="username" id="usernameInput" placeholder="새 닉네임"
+                     class="mt-1 w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-500"
+                     pattern="^[A-Za-z0-9가-힣]+$" required>
+              <p id="usernameHint" class="mt-1 text-xs text-gray-500">
+                한글/영문/숫자만 가능 (공백·특수문자 불가)
+              </p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700">프로필 이미지 (선택)</label>
+              <input type="file" id="avatarInput" name="avatar" accept="image/*"
+                     class="mt-1 w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-500">
+              <p class="mt-1 text-xs text-gray-500">이미지 파일, 최대 5MB</p>
+            </div>
+
+            <button class="w-full sm:w-40 rounded-xl bg-blue-600 text-white py-2.5 font-medium hover:bg-blue-700">
+              저장
+            </button>
+
+            <p id="updateMsg" class="text-sm mt-2 hidden"></p>
+          </form>
+        </div>
+
+        <!-- 비밀번호 변경 -->
+        <div class="tab-pane" id="password">
+          <form id="pwForm" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700">현재 비밀번호</label>
+              <input name="old_password" type="password"
+                     class="mt-1 w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-500" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700">새 비밀번호 (8자 이상)</label>
+              <input name="new_password" type="password" minlength="8"
+                     class="mt-1 w-full rounded-xl border-gray-300 focus:ring-2 focus:ring-blue-500" required>
+            </div>
+            <button class="w-full sm:w-40 rounded-xl bg-emerald-600 text-white py-2.5 font-medium hover:bg-emerald-700">
+              변경하기
+            </button>
+            <p id="pwMsg" class="text-sm mt-2 hidden"></p>
+          </form>
+        </div>
+
+        <!-- 로그아웃 -->
+        <div class="tab-pane" id="session">
+          <div class="rounded-xl border border-gray-200 p-4 bg-gray-50">
+            <p class="text-gray-700">정말 로그아웃하시겠어요?</p>
+            <div class="flex gap-2 mt-3">
+              <button id="logoutBtn"
+                      class="flex-1 rounded-xl bg-gray-900 text-white py-2.5 font-medium hover:bg-black">
+                로그아웃
+              </button>
+              <a href="index.html"
+                 class="flex-1 rounded-xl bg-white border border-gray-300 py-2.5 text-center font-medium hover:bg-gray-100">
+                취소
+              </a>
+            </div>
+            <p id="logoutMsg" class="text-sm mt-2 hidden"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <style>
+    .tab-btn {
+      @apply rounded-xl border border-gray-200 bg-white py-2 text-sm font-medium text-gray-700 hover:bg-gray-50;
+    }
+    .tab-btn.active { @apply bg-blue-600 text-white border-blue-600; }
+    .tab-pane { display: none; }
+    .tab-pane.show { display: block; }
+  </style>
+
+  <script>
+    // 탭 전환
+    const btns = document.querySelectorAll('.tab-btn');
+    const panes = document.querySelectorAll('.tab-pane');
+    btns.forEach(b => b.addEventListener('click', () => {
+      btns.forEach(x => x.classList.remove('active'));
+      panes.forEach(p => p.classList.remove('show'));
+      b.classList.add('active');
+      document.getElementById(b.dataset.tab).classList.add('show');
+    }));
+
+    // 사용자 정보 로드
+    async function loadMe() {
+      const res = await fetch('/users/me');
+      if (!res.ok) {
+        location.href = 'login.html';
+        return;
+      }
+      const { user } = await res.json();
+      document.getElementById('emailText').textContent = user.email || '-';
+      document.getElementById('usernameInput').value = user.username || '';
+      const avatar = user.avatar_url || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
+      document.getElementById('avatarPreview').src = avatar;
+    }
+
+    // 아바타 미리보기 + 간단 용량 체크
+    const avatarInput = document.getElementById('avatarInput');
+    avatarInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0]; if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        e.target.value = '';
+        showMsg('updateMsg', '이미지는 최대 5MB까지 업로드 가능합니다.', false);
+        return;
+      }
+      const url = URL.createObjectURL(file);
+      document.getElementById('avatarPreview').src = url;
+    });
+
+    // 메시지 헬퍼
+    function showMsg(id, text, ok = true) {
+      const el = document.getElementById(id);
+      el.textContent = text;
+      el.className = `mt-2 text-sm ${ok ? 'text-green-600' : 'text-red-600'}`;
+      el.classList.remove('hidden');
+    }
+
+    // 프로필 저장
+    document.getElementById('updateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = new FormData(e.target);
+      const res = await fetch('/users/update', { method: 'POST', body: form });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg('updateMsg', data.message || '저장되었습니다.', true);
+        await loadMe();
+      } else {
+        showMsg('updateMsg', data.detail || '저장 중 오류가 발생했습니다.', false);
+      }
+    });
+
+    // 비밀번호 변경
+    document.getElementById('pwForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = new FormData(e.target);
+      const res = await fetch('/users/change-password', { method: 'POST', body: form });
+      const data = await res.json();
+      if (res.ok) {
+        showMsg('pwMsg', data.message || '비밀번호가 변경되었습니다.', true);
+        e.target.reset();
+      } else {
+        showMsg('pwMsg', data.detail || '변경 중 오류가 발생했습니다.', false);
+      }
+    });
+
+    // 로그아웃
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      const res = await fetch('/users/logout', { method: 'POST' });
+      if (res.ok) {
+        showMsg('logoutMsg', '로그아웃 되었습니다.', true);
+        setTimeout(() => location.href = 'login.html', 500);
+      } else {
+        showMsg('logoutMsg', '로그아웃 중 오류가 발생했습니다.', false);
+      }
+    });
+
+    // 초기화
+    loadMe();
+  </script>
 </body>
-</html><h2>회원정보 수정</h2>
-<form id="updateForm">
-  <input name="username" placeholder="새 이름"><br>
-  <input name="email" placeholder="새 이메일"><br>
-  <button type="submit">수정하기</button>
-</form>
-
-<script>
-document.getElementById("updateForm").onsubmit = async (e) => {
-  e.preventDefault();
-  const form = new FormData(e.target);
-  const res = await fetch("/users/update", { method: "POST", body: form });
-  const data = await res.json();
-  alert(data.message);
-  if (res.ok) window.location = "index.html";
-};
-</script>
+</html>

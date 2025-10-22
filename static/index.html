@@ -3,255 +3,98 @@
 <head>
   <meta charset="UTF-8" />
   <title>Community Board</title>
-  <!-- Tailwind CSS (CDN) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    /* ===== 슬라이드 패널 & 오버레이 ===== */
-    .slide-panel {
-      position: fixed;
-      top: 0;
-      right: -420px;
-      width: 360px;
-      height: 100vh;
-      background: white;
-      box-shadow: -5px 0 20px rgba(0,0,0,0.15);
-      transition: right 0.4s ease;
-      z-index: 1000;
-      padding: 24px;
-      overflow-y: auto;
-    }
-    .slide-panel.open { right: 0; }
-    .overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      opacity: 0;
-      visibility: hidden;
-      transition: opacity 0.3s ease;
-      z-index: 999;
-    }
-    .overlay.show {
-      opacity: 1;
-      visibility: visible;
-    }
-  </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex flex-col items-center">
-
-  <!-- ===== 상단 헤더 ===== -->
-  <header class="w-full bg-white shadow p-4 flex justify-between items-center fixed top-0">
-    <h1 class="text-2xl font-bold text-blue-600 cursor-pointer" onclick="window.location='index.html'">Community</h1>
-    <div class="flex items-center gap-3">
-      <!-- 프로필 버튼 -->
-      <button id="profileBtn"
-              onclick="togglePanel(true)"
-              class="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-full transition">
-        <img src="https://cdn-icons-png.flaticon.com/512/3177/3177440.png" class="w-8 h-8 rounded-full" alt="avatar">
-        <span id="userName" class="font-semibold text-gray-700">로그인</span>
-      </button>
+<body class="bg-gray-50 min-h-screen">
+  <!-- 헤더 -->
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+    <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+      <h1 class="text-lg font-bold text-gray-900 cursor-pointer" onclick="location.href='index.html'">Community</h1>
+      <div id="navRight" class="flex items-center gap-2">
+        <!-- JS에서 로그인 여부에 따라 버튼 교체 -->
+      </div>
     </div>
   </header>
 
-  <!-- ===== 메인 콘텐츠 ===== -->
-  <main class="mt-24 p-6 text-center text-gray-700 w-full">
-    <h2 class="text-3xl font-semibold mb-2">👋 환영합니다!</h2>
-    <p>오른쪽 상단 프로필 버튼을 눌러<br>회원정보 수정, 비밀번호 변경, 로그아웃을 할 수 있습니다.</p>
-
-    <!-- 최근 글 + 새 글 작성 -->
-    <div class="max-w-2xl mx-auto mt-10 text-left">
-      <!-- 👉 먼저: 게시글 바로 위 '새 글 작성' 버튼 -->
-      <div class="flex justify-end mb-2">
-        <button
-          class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-          onclick="window.location='post.html'">
-          ✏️ 새 글 작성
-        </button>
-      </div>
-
-      <!-- 그리고 아래에 '최근 글' 제목 -->
-      <h3 class="text-xl font-bold mb-3">최근 글</h3>
-
-      <!-- 글 목록 -->
-      <div id="posts" class="space-y-3">
-        <!-- JS에서 채움 -->
-      </div>
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    <!-- 새 글 작성 -->
+    <div class="flex justify-end">
+      <button
+        class="rounded-xl bg-blue-600 text-white px-4 py-2 font-medium hover:bg-blue-700"
+        onclick="location.href='post.html'">
+        ✏️ 새 글 작성
+      </button>
     </div>
+
+    <h2 class="text-xl font-semibold text-gray-900 mt-6 mb-3">최근 글</h2>
+
+    <div id="posts" class="space-y-3"></div>
   </main>
 
-  <!-- ===== 반투명 배경 ===== -->
-  <div id="overlay" class="overlay" onclick="togglePanel(false)"></div>
-
-  <!-- ===== 오른쪽 슬라이드 패널 ===== -->
-  <aside id="panel" class="slide-panel">
-    <div class="flex justify-between items-center mb-5">
-      <h2 class="text-xl font-bold text-gray-700">내 프로필</h2>
-      <button onclick="togglePanel(false)" class="text-gray-500 hover:text-gray-800 text-2xl" aria-label="close">&times;</button>
-    </div>
-
-    <!-- 프로필 정보 -->
-    <div class="text-center mb-6">
-      <img src="https://cdn-icons-png.flaticon.com/512/3177/3177440.png"
-           class="w-20 h-20 rounded-full mx-auto mb-3" alt="avatar">
-      <h3 id="profileName" class="text-lg font-semibold text-gray-800">-</h3>
-      <p id="profileEmail" class="text-gray-500 text-sm">-</p>
-    </div>
-
-    <!-- 메뉴 -->
-    <div class="space-y-3">
-      <button onclick="showSection('updateSection')"
-              class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg">회원정보 수정</button>
-      <button onclick="showSection('pwSection')"
-              class="w-full bg-green-500 hover:bg-green-600 text-white py-2 rounded-lg">비밀번호 변경</button>
-      <button onclick="doLogout()"
-              class="w-full bg-gray-300 hover:bg-gray-400 text-gray-800 py-2 rounded-lg">로그아웃</button>
-    </div>
-
-    <!-- 회원정보 수정 -->
-    <div id="updateSection" class="hidden mt-6">
-      <h3 class="text-lg font-semibold text-gray-700 mb-3">회원정보 수정</h3>
-      <form id="updateForm" class="space-y-3">
-        <input name="username" placeholder="새 이름"
-               class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400" />
-        <input name="email" placeholder="새 이메일"
-               class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400" />
-        <button type="submit"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg">
-          수정하기
-        </button>
-      </form>
-    </div>
-
-    <!-- 비밀번호 변경 -->
-    <div id="pwSection" class="hidden mt-6">
-      <h3 class="text-lg font-semibold text-gray-700 mb-3">비밀번호 변경</h3>
-      <form id="pwForm" class="space-y-3">
-        <input name="old_password" type="password" placeholder="현재 비밀번호"
-               class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-400" />
-        <input name="new_password" type="password" placeholder="새 비밀번호"
-               class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-green-400" />
-        <button type="submit"
-                class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg">
-          변경하기
-        </button>
-      </form>
-    </div>
-  </aside>
-
-  <!-- ===== 페이지 스크립트 ===== -->
   <script>
-    const panel = document.getElementById("panel");
-    const overlay = document.getElementById("overlay");
-    let isLoggedIn = false;
-
-    // 패널 여닫기
-    function togglePanel(open) {
-      if (open && !isLoggedIn) { window.location = "login.html"; return; }
-      if (open) {
-        panel.classList.add("open");
-        overlay.classList.add("show");
-      } else {
-        panel.classList.remove("open");
-        overlay.classList.remove("show");
-        hideSections();
-      }
-    }
-
-    // 섹션 전환
-    function showSection(id) {
-      hideSections();
-      document.getElementById(id).classList.remove("hidden");
-    }
-    function hideSections() {
-      document.querySelectorAll("#updateSection, #pwSection").forEach(el => el.classList.add("hidden"));
-    }
-
-    // 로그아웃
-    async function doLogout() {
-      try { await fetch("/users/logout", { method: "POST" }); } catch (e) {}
-      alert("로그아웃 되었습니다.");
-      window.location = "login.html";
-    }
-
-    // 사용자 정보 불러오기
-    async function loadUser() {
+    async function renderHeader() {
+      const nav = document.getElementById('navRight');
       try {
-        const res = await fetch("/users/me");
+        const res = await fetch('/users/me');
         if (!res.ok) {
-          isLoggedIn = false;
-          document.getElementById("userName").textContent = "로그인";
+          nav.innerHTML = `
+            <button class="rounded-xl border px-3 py-1.5 text-sm hover:bg-gray-50" onclick="location.href='login.html'">로그인</button>
+            <button class="rounded-xl bg-gray-900 text-white px-3 py-1.5 text-sm hover:bg-black" onclick="location.href='register.html'">회원가입</button>
+          `;
           return;
         }
-        const data = await res.json();
-        const user = data.user;
-        const avatarUrl = user.avatar_url || "https://cdn-icons-png.flaticon.com/512/3177/3177440.png";
-document.querySelector('#panel img').src = avatarUrl;
-document.querySelector('#profileBtn img').src = avatarUrl;
-        isLoggedIn = true;
-        document.getElementById("userName").textContent = user.username;
-        document.getElementById("profileName").textContent = user.username;
-        document.getElementById("profileEmail").textContent = user.email;
-      } catch (e) {
-        console.error(e);
+        const { user } = await res.json();
+        const avatar = user.avatar_url || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
+        nav.innerHTML = `
+          <button onclick="location.href='mypage.html'" class="flex items-center gap-2 rounded-full border px-2 py-1.5 hover:bg-gray-50">
+            <img src="${avatar}" class="w-7 h-7 rounded-full object-cover">
+            <span class="text-sm font-medium text-gray-800">${user.username}</span>
+          </button>
+        `;
+      } catch {
+        nav.innerHTML = `<button class="rounded-xl border px-3 py-1.5 text-sm" onclick="location.href='login.html'">로그인</button>`;
       }
     }
 
-    // 회원정보 수정
-    document.getElementById("updateForm").onsubmit = async (e) => {
-      e.preventDefault();
-      const form = new FormData(e.target);
-      const res = await fetch("/users/update", { method: "POST", body: form });
-      const data = await res.json();
-      alert(data.detail || data.message);
-      if (res.ok) { togglePanel(false); loadUser(); }
-    };
-
-    // 비밀번호 변경
-    document.getElementById("pwForm").onsubmit = async (e) => {
-      e.preventDefault();
-      const form = new FormData(e.target);
-      const res = await fetch("/users/change-password", { method: "POST", body: form });
-      const data = await res.json();
-      alert(data.detail || data.message);
-      if (res.ok) togglePanel(false);
-    };
-
-    // 게시글 불러오기
     async function loadPosts() {
-      const box = document.getElementById("posts");
+      const box = document.getElementById('posts');
       try {
-        const res = await fetch("/posts");
+        const res = await fetch('/posts');
         if (!res.ok) {
-          box.innerHTML = `<div class="bg-white p-4 rounded-lg shadow text-center text-gray-500">🔒 로그인 후 게시글을 볼 수 있습니다.</div>`;
+          box.innerHTML = `
+            <div class="bg-white rounded-xl border p-6 text-center text-gray-500">
+              🔒 로그인 후 게시글을 볼 수 있습니다.
+            </div>`;
           return;
         }
         const data = await res.json();
-        box.innerHTML = "";
-        if (!data.posts || data.posts.length === 0) {
-          box.innerHTML = `<div class="bg-white p-4 rounded-lg shadow text-center text-gray-500">아직 게시글이 없습니다.</div>`;
+        if (!data.posts?.length) {
+          box.innerHTML = `
+            <div class="bg-white rounded-xl border p-6 text-center text-gray-500">
+              아직 게시글이 없습니다.
+            </div>`;
           return;
         }
+        box.innerHTML = '';
         data.posts.forEach(p => {
-          const ts = p.ts || p.created_date || "";
-          const author = p.author || p.username || "";
-          const el = document.createElement("div");
-          el.className = "bg-white p-4 rounded-lg shadow";
+          const ts = p.created_date ? new Date(p.created_date).toLocaleString() : '';
+          const el = document.createElement('article');
+          el.className = 'bg-white rounded-xl border p-5';
           el.innerHTML = `
-            <div class="text-sm text-gray-500">${ts ? new Date(ts).toLocaleString() : ""}</div>
-            <div class="text-lg font-semibold text-blue-600">${p.title}</div>
-            <div class="mt-1 text-gray-700 whitespace-pre-line">${p.content}</div>
-            <div class="text-xs text-gray-400 mt-1">${author ? ("by " + author) : ""}</div>
+            <div class="text-xs text-gray-500">${ts}</div>
+            <h3 class="mt-1 text-lg font-semibold text-blue-700">${p.title}</h3>
+            <p class="mt-1 text-gray-700 whitespace-pre-line">${p.content}</p>
+            <div class="mt-2 text-xs text-gray-400">by ${p.username || '-'}</div>
           `;
           box.appendChild(el);
         });
-      } catch (e) {
-        console.error(e);
-        box.innerHTML = `<div class="bg-white p-4 rounded-lg shadow text-center text-red-500">게시글을 불러오는 중 오류가 발생했습니다.</div>`;
+      } catch {
+        box.innerHTML = `<div class="bg-white rounded-xl border p-6 text-center text-red-500">게시글을 불러오는 중 오류가 발생했습니다.</div>`;
       }
     }
 
-    // 초기 로드
     (async function init() {
-      await loadUser();
+      await renderHeader();
       await loadPosts();
     })();
   </script>
