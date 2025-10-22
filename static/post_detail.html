@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>게시글 상세 · Community</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <!-- 헤더 -->
+  <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b">
+    <div class="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
+      <h1 class="text-lg font-bold text-gray-900 cursor-pointer" onclick="location.href='index.html'">Community</h1>
+      <div id="navRight" class="flex items-center gap-2"></div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-4">
+      <button class="text-sm text-gray-600 hover:text-blue-700" onclick="history.back()">← 뒤로가기</button>
+    </div>
+
+    <!-- 본문 카드 -->
+    <article class="bg-white rounded-2xl border p-6">
+      <div id="metaTop" class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
+        <span id="createdAt">-</span>
+        <span class="text-gray-300">•</span>
+        <span id="author">-</span>
+      </div>
+
+      <h2 id="title" class="mt-2 text-2xl font-bold text-gray-900 break-words">제목</h2>
+
+      <!-- 상단 통계 / 좋아요 버튼 -->
+      <div class="mt-3 flex items-center justify-between">
+        <div class="flex items-center gap-4 text-sm text-gray-500">
+          <span id="statLikes">👍 0</span>
+          <span id="statComments">💬 0</span>
+          <span id="statViews">👁️ 0</span>
+        </div>
+        <button id="likeBtn"
+                class="rounded-xl px-4 py-2 text-sm font-medium border hover:bg-gray-50">
+          👍 좋아요
+        </button>
+      </div>
+
+      <div id="content" class="mt-6 whitespace-pre-line text-gray-800"></div>
+    </article>
+
+    <!-- 댓글 -->
+    <section class="mt-6 bg-white rounded-2xl border p-6">
+      <h3 class="text-lg font-semibold">댓글</h3>
+
+      <!-- 댓글 작성 -->
+      <form id="commentForm" class="mt-4">
+        <textarea name="content"
+                  class="w-full rounded-xl border px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows="3" placeholder="댓글을 입력하세요" required></textarea>
+        <div class="mt-3 flex justify-end">
+          <button class="rounded-xl bg-blue-600 text-white px-4 py-2 font-medium hover:bg-blue-700">
+            등록
+          </button>
+        </div>
+      </form>
+
+      <!-- 목록 -->
+      <div id="comments" class="mt-4 space-y-3"></div>
+    </section>
+  </main>
+
+  <script>
+    // 공통: 헤더 유저 표시
+    async function renderHeader() {
+      const nav = document.getElementById('navRight');
+      try {
+        const res = await fetch('/users/me');
+        if (!res.ok) {
+          nav.innerHTML = `
+            <button class="rounded-xl border px-3 py-1.5 text-sm hover:bg-gray-50" onclick="location.href='login.html'">로그인</button>
+            <button class="rounded-xl bg-gray-900 text-white px-3 py-1.5 text-sm hover:bg-black" onclick="location.href='register.html'">회원가입</button>
+          `;
+          return;
+        }
+        const { user } = await res.json();
+        const avatar = user.avatar_url || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
+        nav.innerHTML = `
+          <button onclick="location.href='mypage.html'" class="flex items-center gap-2 rounded-full border px-2 py-1.5 hover:bg-gray-50">
+            <img src="${avatar}" class="w-7 h-7 rounded-full object-cover">
+            <span class="text-sm font-medium text-gray-800">${user.username}</span>
+          </button>
+        `;
+      } catch {
+        nav.innerHTML = `<button class="rounded-xl border px-3 py-1.5 text-sm" onclick="location.href='login.html'">로그인</button>`;
+      }
+    }
+
+    // URL 파라미터에서 id 추출
+    const params = new URLSearchParams(location.search);
+    const postId = Number(params.get('id'));
+    if (!postId) location.replace('index.html');
+
+    // 상세 불러오기
+    async function loadPost() {
+      // 조회수 +1 (백엔드에 라우트 필요: POST /posts/{id}/view)
+      try { await fetch(`/posts/${postId}/view`, { method: 'POST' }); } catch {}
+
+      // 게시글 가져오기 (권장 라우트: GET /posts/{id} -> like_count, comment_count, view_count, liked 포함)
+      let post;
+      try {
+        const r = await fetch(`/posts/${postId}`);
+        if (r.ok) {
+          post = await r.json();
+        }
+      } catch {}
+
+      // 만약 위 라우트가 없다면, /posts 전체에서 찾아서 최소 정보라도 렌더 (폴백)
+      if (!post?.id) {
+        try {
+          const r2 = await fetch('/posts');
+          if (r2.ok) {
+            const data = await r2.json();
+            post = (data.posts || []).find(p => p.id === postId);
+            // liked 정보는 없음 (버튼 기본상태로)
+          }
+        } catch {}
+      }
+
+      if (!post?.id) {
+        document.querySelector('main').innerHTML =
+          `<div class="max-w-4xl mx-auto bg-white rounded-xl border p-6 text-center text-red-500">게시글을 불러오지 못했습니다.</div>`;
+        return;
+      }
+
+      // 렌더
+      document.getElementById('title').textContent = post.title || '-';
+      document.getElementById('content').textContent = post.content || '';
+      document.getElementById('author').textContent = `by ${post.username || '-'}`;
+      document.getElementById('createdAt').textContent =
+        post.created_date ? new Date(post.created_date).toLocaleString() : '';
+
+      document.getElementById('statLikes').textContent    = `👍 ${post.like_count ?? 0}`;
+      document.getElementById('statComments').textContent = `💬 ${post.comment_count ?? 0}`;
+      document.getElementById('statViews').textContent    = `👁️ ${post.view_count ?? 0}`;
+
+      // 좋아요 버튼 상태
+      setLikeBtn(!!post.liked);
+
+      // 버튼 핸들러
+      document.getElementById('likeBtn').onclick = async () => {
+        try {
+          // 권장 라우트: POST /posts/{id}/like (토글) -> { liked:bool, like_count:int }
+          const r = await fetch(`/posts/${postId}/like`, { method: 'POST' });
+          if (!r.ok) return;
+          const data = await r.json();
+          setLikeBtn(!!data.liked);
+          document.getElementById('statLikes').textContent = `👍 ${data.like_count ?? (post.like_count ?? 0)}`;
+        } catch {}
+      };
+    }
+
+    function setLikeBtn(liked) {
+      const btn = document.getElementById('likeBtn');
+      if (liked) {
+        btn.classList.remove('border','hover:bg-gray-50');
+        btn.classList.add('bg-blue-600','text-white','hover:bg-blue-700');
+        btn.textContent = '👍 좋아요 취소';
+      } else {
+        btn.classList.add('border','hover:bg-gray-50');
+        btn.classList.remove('bg-blue-600','text-white','hover:bg-blue-700');
+        btn.textContent = '👍 좋아요';
+      }
+    }
+
+    // 댓글
+    async function loadComments() {
+      const box = document.getElementById('comments');
+      box.innerHTML = `<div class="text-sm text-gray-400">불러오는 중…</div>`;
+      try {
+        const r = await fetch(`/comments/${postId}`);
+        if (!r.ok) throw 0;
+        const data = await r.json();
+        if (!data.comments?.length) {
+          box.innerHTML = `<div class="text-sm text-gray-400">첫 댓글을 남겨보세요.</div>`;
+          return;
+        }
+        box.innerHTML = '';
+        data.comments.forEach(c => {
+          const ts = c.created_date ? new Date(c.created_date).toLocaleString() : '';
+          const el = document.createElement('div');
+          el.className = 'rounded-xl border p-4';
+          el.innerHTML = `
+            <div class="flex items-center justify-between text-xs text-gray-500">
+              <span class="font-medium text-gray-700">${c.username || '-'}</span>
+              <span>${ts}</span>
+            </div>
+            <p class="mt-2 text-gray-800 whitespace-pre-line">${c.content}</p>
+          `;
+          box.appendChild(el);
+        });
+        // 상단 댓글 수 업데이트(있다면)
+        const count = data.comments.length;
+        document.getElementById('statComments').textContent = `💬 ${count}`;
+      } catch {
+        box.innerHTML = `<div class="text-sm text-red-500">댓글을 불러오지 못했습니다.</div>`;
+      }
+    }
+
+    document.getElementById('commentForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      fd.append('post_id', postId);
+      try {
+        const r = await fetch('/comment', { method: 'POST', body: fd });
+        const data = await r.json();
+        if (!r.ok) {
+          alert(data.detail || '댓글 등록 실패');
+          return;
+        }
+        e.target.reset();
+        await loadComments();
+      } catch {
+        alert('댓글 등록 실패');
+      }
+    });
+
+    (async function init(){
+      await renderHeader();
+      await loadPost();
+      await loadComments();
+    })();
+  </script>
+</body>
+</html>

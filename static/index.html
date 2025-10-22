@@ -85,7 +85,14 @@
             <h3 class="mt-1 text-lg font-semibold text-blue-700">${p.title}</h3>
             <p class="mt-1 text-gray-700 whitespace-pre-line">${p.content}</p>
             <div class="mt-2 text-xs text-gray-400">by ${p.username || '-'}</div>
+              <div class="mt-3 flex items-center gap-4 text-sm text-gray-500">
+    <span>👍 ${p.like_count ?? 0}</span>
+    <span>💬 ${p.comment_count ?? 0}</span>
+    <span>👁️ ${p.view_count ?? 0}</span>
+  </div>
           `;
+el.classList.add('cursor-pointer','hover:bg-gray-50','transition'); // 선택
+el.addEventListener('click', () => location.href = `post_detail.html?id=${p.id}`);
           box.appendChild(el);
         });
       } catch {

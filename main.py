@@ -227,28 +227,90 @@ def logout(request: Request):
     return{"message":"로그아웃 되었습니다."}
 @app.post("/post")
 def create_post(request: Request, title:str=Form(...), content:str=Form(...)):
-    user=request.session.get("user")
-    if not user:
-        raise HTTPException(status_code=400,detail="로그인이 필요합니다.")
+    user=ensure_logged_in(request)
+
 
     with conn.cursor() as cur:
         cur.execute("INSERT INTO posts (user_id, title, content) VALUES (%s, %s, %s)",(user["id"],title,content))
+
+        post_id = cur.lastrowid
         conn.commit()
-    return{"message":"게시글이 작성되었습니다."}
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, title, content, created_date FROM posts WHERE id=%s",
+            (post_id,)
+        )
+        post = cur.fetchone()
+    return{"message":"게시글이 작성되었습니다.","post":post}
 
 @app.get("/posts")
 def get_posts(request: Request):
-    ensure_logged_in(request)
+    user = ensure_logged_in(request)
     with conn.cursor() as cur:
         cur.execute("""
-                    SELECT p.id, p.title, p.content, u.username, p.created_date
-                    FROM posts p
-                             JOIN users u ON p.user_id = u.id
-                    ORDER BY p.id DESC
-                    """)
-        rows= cur.fetchall()
-    return {"posts":rows}
+            SELECT
+              p.id,
+              p.title,
+              p.content,
+              u.username,
+              p.created_date,
+              p.view_count,
+              IFNULL(lc.cnt, 0)   AS like_count,
+              IFNULL(cc.cnt, 0)   AS comment_count,
+              EXISTS(
+                SELECT 1 FROM likes l2
+                 WHERE l2.post_id = p.id AND l2.user_id = %s
+              )                   AS liked
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            LEFT JOIN (
+              SELECT post_id, COUNT(*) AS cnt
+                FROM likes
+               GROUP BY post_id
+            ) lc ON lc.post_id = p.id
+            LEFT JOIN (
+              SELECT post_id, COUNT(*) AS cnt
+                FROM comments
+               GROUP BY post_id
+            ) cc ON cc.post_id = p.id
+            ORDER BY p.id DESC
+        """, (user["id"],))
+        rows = cur.fetchall()
+    return {"posts": rows}
 
+@app.post("/posts/{post_id}/like")
+def toggle_like(request: Request, post_id:int):
+    user=ensure_logged_in(request)
+    try:
+        with conn.cursor() as cur:
+            cur.execute( "INSERT INTO likes (post_id, user_id) VALUES (%s, %s)",
+                (post_id, user["id"]))
+            conn.commit()
+            liked=True
+
+    except pymysql.err.IntegrityError:
+        with conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM likes WHERE post_id = %s AND user_id = %s",
+                (post_id, user["id"])
+            )
+
+        conn.commit()
+        liked=False
+    with conn.cursor() as cur:
+        cur.execute("SELECT COUNT(*) AS cnt FROM likes WHERE post_id = %s", (post_id,))
+        like_count = cur.fetchone()["cnt"]
+    return {"liked":liked, "like_count":like_count}
+
+
+@app.post("/posts/{post_id}/view")
+def increase_view(post_id:int):
+    with conn.cursor() as cur:
+        cur.execute("UPDATE posts SET view_count = view_count + 1 WHERE id = %s",(post_id,))
+        cur.execute("SELECT view_count FROM posts WHERE id=%s", (post_id,))
+        vc = cur.fetchone()["view_count"]
+    conn.commit()
+    return{"view_count":vc}
 @app.post("/comment")
 def create_comment(request: Request, post_id:int=Form(...),content:str=Form(...)):
     user= request.session.get("user")
