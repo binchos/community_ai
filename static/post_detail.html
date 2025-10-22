@@ -21,14 +21,17 @@
 
     <!-- 본문 카드 -->
     <article class="bg-white rounded-2xl border p-6">
-      <div id="metaTop" class="flex flex-wrap items-center gap-3 text-xs text-gray-500">
-        <span id="createdAt">-</span>
-        <span class="text-gray-300">•</span>
-        <span id="author">-</span>
-      </div>
+    <div id="meta" class="flex items-center gap-3">
+  <img id="authorAvatar" class="w-8 h-8 rounded-full object-cover" alt="author avatar">
+  <div>
+    <div id="author" class="text-sm font-medium text-gray-800">-</div>
+    <div id="createdAt" class="text-xs text-gray-500">-</div>
+  </div>
+</div>
+
 
       <h2 id="title" class="mt-2 text-2xl font-bold text-gray-900 break-words">제목</h2>
-
+ <div id="content" class="mt-6 whitespace-pre-line text-gray-800"></div>
       <!-- 상단 통계 / 좋아요 버튼 -->
       <div class="mt-3 flex items-center justify-between">
         <div class="flex items-center gap-4 text-sm text-gray-500">
@@ -50,7 +53,7 @@
   </div>
       </div>
 
-      <div id="content" class="mt-6 whitespace-pre-line text-gray-800"></div>
+
     </article>
 
     <!-- 댓글 -->
@@ -140,11 +143,21 @@
       }
 
       // 렌더
-      document.getElementById('title').textContent = post.title || '-';
-      document.getElementById('content').textContent = post.content || '';
-      document.getElementById('author').textContent = `by ${post.username || '-'}`;
-      document.getElementById('createdAt').textContent =
-        post.created_date ? new Date(post.created_date).toLocaleString() : '';
+      // 제목/본문
+        document.getElementById('title').textContent = post.title || '-';
+        document.getElementById('content').textContent = post.content || '';
+
+// 아바타/이름/시간 — 홈 목록과 동일한 형태
+        const avatar = post.author_avatar || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
+        const avatarEl = document.getElementById('authorAvatar');
+        if (avatarEl) {
+  avatarEl.src = avatar;
+  avatarEl.alt = post.username || 'author';
+}
+        document.getElementById('author').textContent =
+  post.username || '-';
+        document.getElementById('createdAt').textContent =
+  post.created_date ? new Date(post.created_date).toLocaleString() : '';
 
       document.getElementById('statLikes').textContent    = `👍 ${post.like_count ?? 0}`;
       document.getElementById('statComments').textContent = `💬 ${post.comment_count ?? 0}`;

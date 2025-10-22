@@ -77,24 +77,37 @@
         }
         box.innerHTML = '';
         data.posts.forEach(p => {
-          const ts = p.created_date ? new Date(p.created_date).toLocaleString() : '';
-          const el = document.createElement('article');
-          el.className = 'bg-white rounded-xl border p-5';
-          el.innerHTML = `
-            <div class="text-xs text-gray-500">${ts}</div>
-            <h3 class="mt-1 text-lg font-semibold text-blue-700">${p.title}</h3>
+            const ts = p.created_date ? new Date(p.created_date).toLocaleString() : '';
+            const avatar = p.author_avatar || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
+
+            const el = document.createElement('article');
+            el.className = 'bg-white rounded-xl border p-5';
+
+            el.innerHTML = `
+    <!-- 작성자 메타 (아바타/닉네임/시간) -->
+             <div class="flex items-center gap-3">
+                 <img src="${avatar}" class="w-8 h-8 rounded-full object-cover" alt="avatar">
+                 <div>
+                  <div class="text-sm font-medium text-gray-800">${p.username || '-'}</div>
+                  <div class="text-xs text-gray-500">${ts}</div>
+                </div>
+            </div>
+
+            <h3 class="mt-3 text-lg font-semibold text-blue-700">${p.title}</h3>
             <p class="mt-1 text-gray-700 whitespace-pre-line">${p.content}</p>
-            <div class="mt-2 text-xs text-gray-400">by ${p.username || '-'}</div>
-              <div class="mt-3 flex items-center gap-4 text-sm text-gray-500">
-    <span>👍 ${p.like_count ?? 0}</span>
-    <span>💬 ${p.comment_count ?? 0}</span>
-    <span>👁️ ${p.view_count ?? 0}</span>
-  </div>
-          `;
-el.classList.add('cursor-pointer','hover:bg-gray-50','transition'); // 선택
-el.addEventListener('click', () => location.href = `post_detail.html?id=${p.id}`);
-          box.appendChild(el);
-        });
+
+           <div class="mt-3 flex items-center gap-4 text-sm text-gray-500">
+             <span>👍 ${p.like_count ?? 0}</span>
+              <span>💬 ${p.comment_count ?? 0}</span>
+               <span>👁️ ${p.view_count ?? 0}</span>
+             </div>
+  `;
+
+  el.classList.add('cursor-pointer','hover:bg-gray-50','transition');
+  el.addEventListener('click', () => location.href = `post_detail.html?id=${p.id}`);
+  box.appendChild(el);
+});
+
       } catch {
         box.innerHTML = `<div class="bg-white rounded-xl border p-6 text-center text-red-500">게시글을 불러오는 중 오류가 발생했습니다.</div>`;
       }

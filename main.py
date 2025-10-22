@@ -257,6 +257,7 @@ def get_post(post_id:int, request:Request):
                            p.created_date,
                            p.view_count,
                            u.username,
+                           u.avatar_url AS author_avatar,
                            IFNULL(lc.cnt, 0)             AS like_count,
                            IFNULL(cc.cnt, 0)             AS comment_count,
                            EXISTS(SELECT 1
@@ -288,6 +289,7 @@ def get_posts(request: Request):
               p.title,
               p.content,
               u.username,
+              u.avatar_url AS author_avatar,  
               p.created_date,
               p.view_count,
               IFNULL(lc.cnt, 0)   AS like_count,
