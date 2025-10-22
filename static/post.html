@@ -20,13 +20,13 @@
       -webkit-backdrop-filter: blur(6px);
       border-bottom: 1px solid var(--border);
     }
-   .header-inner {
-  max-width: 56rem;     /* 56rem = Tailwind max-w-4xl (896px) */
-  margin: 0 auto;
-  height: 56px;         /* h-14 */
-  padding: 0 1rem;      /* px-4 */
-  display: flex; align-items: center; justify-content: space-between;
-}
+    .header-inner {
+      max-width: 56rem;   /* Tailwind max-w-4xl */
+      margin: 0 auto;
+      height: 56px;       /* h-14 */
+      padding: 0 1rem;    /* px-4 */
+      display: flex; align-items: center; justify-content: space-between;
+    }
     .brand { font-weight: 800; font-size: 18px; letter-spacing: .2px; cursor: pointer; color:#111827; }
     .nav-right { display:flex; align-items:center; gap:8px; }
     .chip {
@@ -43,14 +43,19 @@
     .hbtn:hover { filter:brightness(0.98); }
 
     /* ===== Page layout ===== */
-.container {
-  max-width: 56rem;     /* ← 720px에서 변경 */
-  margin: clamp(80px, 18vh, 160px) auto 40px;
-  padding: 0 1rem;      /* ← 20px에서 변경 */
-}
+    .container {
+      max-width: 56rem;
+      /* ▼ 상단 여백을 줄여서 조금 더 위로 */
+      margin: calc(56px + 8px) auto 40px;
+      padding: 0 1rem;
+    }
     h2 { margin: 0 0 14px; font-size: 20px; font-weight: 700; }
 
-    .card { background:#fff; border:1px solid var(--border); border-radius:14px; padding:20px; }
+    .card {
+      background:#fff; border:1px solid var(--border); border-radius:14px; padding:20px;
+      /* ▼ 세로로 더 길게 보이도록 최소 높이 지정 */
+      min-height: 70vh;
+    }
 
     .stack > * + * { margin-top: 12px; }
 
@@ -66,7 +71,9 @@
       border-color:var(--primary); box-shadow:0 0 0 3px rgb(37 99 235 / 12%);
     }
     textarea {
-      min-height: 180px; resize: vertical;
+      /* ▼ 내용 영역도 기본 높이를 조금 키움 */
+      min-height: 240px;
+      resize: vertical;
       white-space: pre-wrap; word-break: break-word;
     }
 
@@ -88,10 +95,10 @@
 
     @media (max-width: 420px) {
       body { font-size: 15px; }
-      .container { padding: 0 16px; }
+      .container { padding: 0 16px; margin: clamp(40px, 10vh, 100px) auto 24px; }
+      .card { min-height: 50vh; } /* 작은 화면에서 너무 길지 않게 */
       .header-inner { padding: 0 12px; }
     }
-
   </style>
 </head>
 <body>
@@ -100,9 +107,7 @@
   <header class="header">
     <div class="header-inner">
       <div class="brand" onclick="location.href='index.html'">Community</div>
-      <div id="navRight" class="nav-right">
-        <!-- JS에서 로그인 여부에 따라 교체 -->
-      </div>
+      <div id="navRight" class="nav-right"></div>
     </div>
   </header>
 
@@ -139,7 +144,7 @@
   </div>
 
   <script>
-    // ===== 헤더: 로그인 상태 렌더링 (홈/디테일과 동일 로직)
+    // 헤더 렌더
     async function renderHeader() {
       const nav = document.getElementById('navRight');
       try {
@@ -153,7 +158,6 @@
         }
         const { user } = await res.json();
         const avatar = user.avatar_url || 'https://cdn-icons-png.flaticon.com/512/3177/3177440.png';
-
         nav.innerHTML = `
           <button class="chip" onclick="location.href='mypage.html'">
             <img src="${avatar}" alt="avatar">
@@ -165,7 +169,7 @@
       }
     }
 
-    // ===== 새 글 작성 폼 =====
+    // 폼 로직
     const imageInput = document.getElementById('imageInput');
     const preview = document.getElementById('preview');
     const previewImg = document.getElementById('previewImg');
@@ -189,7 +193,7 @@
       submitBtn.textContent = '작성 중…';
 
       try {
-        const form = new FormData(formEl); // title, content, image 포함
+        const form = new FormData(formEl);
         const res = await fetch('/post', { method: 'POST', body: form });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) { alert(data.detail || '작성에 실패했습니다.'); return; }
@@ -203,10 +207,7 @@
       }
     });
 
-    // 초기화
-    (async function init() {
-      await renderHeader();
-    })();
+    (async function init(){ await renderHeader(); })();
   </script>
 </body>
 </html>
