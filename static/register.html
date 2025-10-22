@@ -1,90 +1,197 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>회원가입</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="style.css" />
   <style>
-    .avatar-preview {
-      width: 96px; height: 96px; border-radius: 50%;
-      object-fit: cover; display: block; margin: 6px auto 0;
-      border: 1px solid #eee;
+    /* ====== Compact overrides ====== */
+    .container { max-width: 360px; padding: 24px; }
+    h2 { font-size: 20px; margin-bottom: 12px; }
+    .field { text-align:left; margin-top: 8px; }
+    .label { font-weight:600; font-size:13px; color:#333; margin-bottom:4px; display:block; }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      border-radius: 8px;
+      font-size: 14px;
     }
-    .hint { color:#666; font-size: 12px; margin-top: 4px; }
-    .error { color:#d33; font-size: 13px; margin-top: 6px; }
+    button { padding: 10px; font-size: 14px; margin-top: 8px; }
+    .error-text { color:#e11d48; font-size:11.5px; margin-top:3px; min-height:14px; }
+    .form-error { color:#e11d48; font-size:12.5px; margin-top:8px; text-align:center; min-height:18px; }
+    .form-success { color:#16a34a; font-size:12.5px; margin-top:8px; text-align:center; min-height:18px; }
+    .hint { font-size:11.5px; color:#666; margin-top:2px; }
+    .preview { margin-top:6px; display:none; }
+    .preview img { width:56px; height:56px; border-radius:50%; object-fit:cover; box-shadow:0 1px 6px rgba(0,0,0,.08); }
+
+    /* 비밀번호/확인 2열 (좁은 화면에서는 자동 1열) */
+    .row-2 { display:block; }
+    @media (min-width: 480px) {
+      .row-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .row-2 .field { margin-top: 6px; }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h2>회원가입</h2>
 
-    <form id="registerForm" enctype="multipart/form-data">
-      <input name="username" placeholder="이름" required><br>
-      <input name="email" placeholder="이메일" type="email" required><br>
-
-      <!-- 비밀번호 + 비밀번호 확인 -->
-      <input id="pw" name="password" placeholder="비밀번호 (8자 이상)" type="password" required><br>
-      <input id="pw2" name="password_confirm" placeholder="비밀번호 확인" type="password" required>
-      <div id="pwErr" class="error" style="display:none;"></div>
-
-      <!-- 프로필 사진 -->
-      <div style="margin-top:12px; text-align:left;">
-        <label for="avatar"><b>프로필 사진 (선택)</b></label>
-        <input id="avatar" name="avatar" type="file" accept="image/*">
-        <div class="hint">JPG/PNG 등 이미지 파일, 최대 5MB</div>
-        <img id="preview" class="avatar-preview" alt="preview" style="display:none;">
+    <form id="registerForm" enctype="multipart/form-data" novalidate>
+      <!-- 닉네임 -->
+      <div class="field">
+        <label class="label" for="username">닉네임</label>
+        <input id="username" name="username" placeholder="예: 홍길동" required />
+        <div id="usernameMsg" class="error-text"></div>
       </div>
 
-      <button type="submit">가입하기</button>
-    </form>
+      <!-- 이메일 -->
+      <div class="field">
+        <label class="label" for="email">이메일</label>
+        <input id="email" name="email" type="email" placeholder="you@example.com" required />
+        <div id="emailMsg" class="error-text"></div>
+      </div>
 
-    <button onclick="window.location='/static/login.html'">로그인으로</button>
+      <!-- 비밀번호 / 비밀번호 확인 (2열) -->
+      <div class="row-2">
+        <div class="field">
+          <label class="label" for="password">비밀번호</label>
+          <input id="password" name="password" type="password" placeholder="8자 이상" required />
+          <div id="passwordMsg" class="error-text"></div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="password_confirm">비밀번호 확인</label>
+          <input id="password_confirm" name="password_confirm" type="password" placeholder="비밀번호 재입력" required />
+          <div id="passwordConfirmMsg" class="error-text"></div>
+        </div>
+      </div>
+
+      <!-- 프로필 사진(선택) -->
+      <div class="field">
+        <label class="label" for="avatar">프로필 사진 (선택)</label>
+        <input id="avatar" name="avatar" type="file" accept="image/*" />
+        <div class="hint">이미지 파일, 최대 5MB</div>
+        <div id="avatarMsg" class="error-text"></div>
+        <div id="avatarPreview" class="preview"><img alt="미리보기" /></div>
+      </div>
+
+      <button id="submitBtn" type="submit">가입하기</button>
+      <div id="formMsg" class="form-error"></div>
+      <div style="margin-top:6px">
+        <button type="button" onclick="window.location='login.html'">로그인으로</button>
+      </div>
+    </form>
   </div>
 
   <script>
-    const pw  = document.getElementById('pw');
-    const pw2 = document.getElementById('pw2');
-    const pwErr = document.getElementById('pwErr');
-    const avatar = document.getElementById('avatar');
-    const preview = document.getElementById('preview');
+    // 서버와 동일한 규칙
+    const USERNAME_RE = /^[A-Za-z0-9가-힣]+$/;
+    const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/; // 클라이언트용 간단 검증
+    const MAX_MB = 5;
 
-    // 이미지 미리보기 + 간단 검증(타입/용량)
-    avatar.addEventListener('change', (e) => {
-      const f = e.target.files && e.target.files[0];
-      if (!f) { preview.style.display='none'; return; }
-      if (!f.type.startsWith('image/')) {
-        alert('이미지 파일만 업로드할 수 있습니다.');
-        avatar.value = ''; preview.style.display='none'; return;
-      }
-      if (f.size > 5 * 1024 * 1024) {
-        alert('파일 용량은 5MB 이하만 가능합니다.');
-        avatar.value = ''; preview.style.display='none'; return;
-      }
-      const url = URL.createObjectURL(f);
-      preview.src = url; preview.style.display = 'block';
-    });
+    // 엘리먼트
+    const f = document.getElementById('registerForm');
+    const el = {
+      username: document.getElementById('username'),
+      email: document.getElementById('email'),
+      password: document.getElementById('password'),
+      password_confirm: document.getElementById('password_confirm'),
+      avatar: document.getElementById('avatar'),
+      submit: document.getElementById('submitBtn'),
+      formMsg: document.getElementById('formMsg'),
+      usernameMsg: document.getElementById('usernameMsg'),
+      emailMsg: document.getElementById('emailMsg'),
+      passwordMsg: document.getElementById('passwordMsg'),
+      passwordConfirmMsg: document.getElementById('passwordConfirmMsg'),
+      avatarMsg: document.getElementById('avatarMsg'),
+      avatarPreview: document.getElementById('avatarPreview'),
+    };
 
-    // 폼 제출
-    document.getElementById("registerForm").onsubmit = async (e) => {
+    function setMsg(node, msg) { node.textContent = msg || ''; }
+
+    function validateUsername() {
+      const v = el.username.value.trim();
+      if (!v) { setMsg(el.usernameMsg, '닉네임을 입력하세요.'); return false; }
+      if (!USERNAME_RE.test(v)) { setMsg(el.usernameMsg, '한글/영문/숫자만 사용 가능합니다. (공백 및 특수문자 불가)'); return false; }
+      setMsg(el.usernameMsg, ''); return true;
+    }
+    function validateEmail() {
+      const v = el.email.value.trim();
+      if (!v) { setMsg(el.emailMsg, '이메일을 입력하세요.'); return false; }
+      if (!EMAIL_RE.test(v)) { setMsg(el.emailMsg, '올바른 이메일 형식이 아닙니다.'); return false; }
+      setMsg(el.emailMsg, ''); return true;
+    }
+    function validatePassword() {
+      const v = el.password.value;
+      if (!v) { setMsg(el.passwordMsg, '비밀번호를 입력하세요.'); return false; }
+      if (v.length < 8) { setMsg(el.passwordMsg, '비밀번호는 8자 이상이어야 합니다.'); return false; }
+      setMsg(el.passwordMsg, ''); return true;
+    }
+    function validatePasswordConfirm() {
+      const p1 = el.password.value, p2 = el.password_confirm.value;
+      if (!p2) { setMsg(el.passwordConfirmMsg, '비밀번호 확인을 입력하세요.'); return false; }
+      if (p1 !== p2) { setMsg(el.passwordConfirmMsg, '비밀번호가 서로 일치하지 않습니다.'); return false; }
+      setMsg(el.passwordConfirmMsg, ''); return true;
+    }
+    function validateAvatar() {
+      const file = el.avatar.files && el.avatar.files[0];
+      if (!file) { setMsg(el.avatarMsg, ''); el.avatarPreview.style.display='none'; return true; }
+      if (!file.type || !file.type.startsWith('image/')) { setMsg(el.avatarMsg, '이미지 파일만 업로드할 수 있습니다.'); return false; }
+      const mb = file.size / (1024 * 1024);
+      if (mb > MAX_MB) { setMsg(el.avatarMsg, '프로필 이미지는 5MB 이하만 가능합니다.'); return false; }
+      const url = URL.createObjectURL(file);
+      el.avatarPreview.querySelector('img').src = url;
+      el.avatarPreview.style.display = 'block';
+      setMsg(el.avatarMsg, '');
+      return true;
+    }
+    function allValid() {
+      // 단락 평가 대신 비트연산으로 모두 검증 → 모든 에러문구 표시
+      return validateUsername() & validateEmail() & validatePassword() & validatePasswordConfirm() & validateAvatar();
+    }
+
+    // 텍스트워처
+    el.username.addEventListener('input', validateUsername);
+    el.email.addEventListener('input', validateEmail);
+    el.password.addEventListener('input', () => { validatePassword(); validatePasswordConfirm(); });
+    el.password_confirm.addEventListener('input', validatePasswordConfirm);
+    el.avatar.addEventListener('change', validateAvatar);
+
+    // 제출
+    f.onsubmit = async (e) => {
       e.preventDefault();
+      el.formMsg.textContent = '';
+      el.formMsg.className = 'form-error';
 
-      // 비밀번호 일치/길이 클라이언트 체크
-      pwErr.style.display = 'none'; pwErr.textContent = '';
-      if (pw.value.length < 8) {
-        pwErr.textContent = '비밀번호는 8자 이상이어야 합니다.'; pwErr.style.display='block'; return;
-      }
-      if (pw.value !== pw2.value) {
-        pwErr.textContent = '비밀번호가 일치하지 않습니다.'; pwErr.style.display='block'; return;
+      if (!allValid()) {
+        el.formMsg.textContent = '입력값을 다시 확인해 주세요.';
+        return;
       }
 
-      const form = new FormData(e.target);
-      const res  = await fetch("/users/register", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.detail || "회원가입에 실패했습니다."); return;
+      const fd = new FormData();
+      fd.append('username', el.username.value.trim());
+      fd.append('email', el.email.value.trim());
+      fd.append('password', el.password.value);
+      fd.append('password_confirm', el.password_confirm.value);
+      if (el.avatar.files[0]) fd.append('avatar', el.avatar.files[0]);
+
+      el.submit.disabled = true;
+      try {
+        const res = await fetch('/users/register', { method: 'POST', body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          el.formMsg.textContent = data.detail || '회원가입에 실패했습니다.';
+          el.submit.disabled = false;
+          return;
+        }
+        el.formMsg.className = 'form-success';
+        el.formMsg.textContent = data.message || '회원가입이 완료되었습니다.';
+        setTimeout(() => { window.location = 'login.html'; }, 600);
+      } catch (err) {
+        el.formMsg.textContent = '네트워크 오류가 발생했습니다.';
+        el.submit.disabled = false;
       }
-      alert(data.message);
-      window.location = "/static/login.html";
     };
   </script>
 </body>
